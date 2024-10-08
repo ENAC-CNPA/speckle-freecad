@@ -8,7 +8,7 @@ from specklepy.api.client import SpeckleClient
 from specklepy.api.credentials import get_default_account
 from specklepy.objects import Base
 from specklepy.objects.geometry import (
-     Mesh, Curve, Interval, Box, Point, Plane, Vector, Polyline,
+     Mesh, Curve, Interval, Box, Point, Plane, Vector, Polyline, Circle
 )
 
 #set links to Speckle
@@ -53,7 +53,32 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(myBox)
-
+	elif object.TypeId == 'Part::Circle':
+		#extract FreeCAD properties
+		propertiesList = object.PropertiesList
+		radius = object.Radius
+		placement = object.Placement
+		#extract FreeCAD placement properties
+		angle = placement.Rotation.Angle
+		axis = placement.Rotation.Axis		
+		position = placement.Base
+		#create Plane
+		plane = Plane.from_list([
+			position.x, position.y, position.z,
+			axis.x, axis.y, axis.z,
+			math.cos(angle), math.sin(angle), 0.0,
+			math.cos(angle+math.pi/2), math.sin(angle+math.pi/2), 0.0,
+		])
+		#create interval
+		domain = Interval(start = 0.0, end = 1.0) 
+		#create Speckle circle
+		myCircle = Circle(
+			radius = radius,
+			plane = plane,
+			domain = domain
+		)
+		#add to data to be sent
+		data.elements.append(myCircle)
 #send to Speckle
 from specklepy.transports.server import ServerTransport
 from specklepy.api import operations
