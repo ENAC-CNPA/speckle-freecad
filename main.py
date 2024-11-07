@@ -8,14 +8,14 @@ from specklepy.api.client import SpeckleClient
 from specklepy.api.credentials import get_default_account
 from specklepy.objects import Base
 from specklepy.objects.geometry import (
-     Mesh, Curve, Interval, Box, Point, Plane, Vector, Polyline, Circle
+     Box, Brep, BrepEdge, BrepFace, Circle, Curve, Interval, Line, Mesh, Plane, Point, Polyline, Vector
 )
 
 #set links to Speckle
 client = SpeckleClient(host="https://app.speckle.systems/")
 account = get_default_account()
 client.authenticate_with_account(account)
-stream_id = "6cf358a40e"
+stream_id = "6cf358a40e" #set here your own stream id
 
 #set container of all elements
 data = Base()
@@ -24,6 +24,7 @@ data.elements = []
 #get FreeCAD Part objects
 objects = App.ActiveDocument.Objects
 for object in objects:
+	#Let's call fObject = from FreeCAD, sObject = from Speckle
 	if object.TypeId == 'Part::Box':
 		#extract FreeCAD properties
 		propertiesList = object.PropertiesList
@@ -43,16 +44,15 @@ for object in objects:
 			math.cos(angle), math.sin(angle), 0.0,
 			math.cos(angle+math.pi/2), math.sin(angle+math.pi/2), 0.0,
 		])
-		print(basePlane.to_list())
 		#create Speckle box
-		myBox = Box(
+		sBox = Box(
 		    basePlane = basePlane,
 		    xSize = Interval.from_list([0, width.Value]),
 		    ySize = Interval.from_list([0, length.Value]),
 		    zSize = Interval.from_list([0, height.Value])
 		)
 		#add to data to be sent
-		data.elements.append(myBox)
+		data.elements.append(sBox)
 	elif object.TypeId == 'Part::Circle':
 		#extract FreeCAD properties
 		propertiesList = object.PropertiesList
@@ -72,13 +72,33 @@ for object in objects:
 		#create interval
 		domain = Interval(start = 0.0, end = 1.0) 
 		#create Speckle circle
-		myCircle = Circle(
+		sCircle = Circle(
 			radius = radius,
 			plane = plane,
 			domain = domain
 		)
 		#add to data to be sent
-		data.elements.append(myCircle)
+		data.elements.append(sCircle)
+	elif object.TypeId == 'Part::Line':
+		fEdge = object.Shape.Edges[0]
+		fStart = fEdge.Vertexes[0]
+		sStart = Point(
+			x = fStart.Point.x,
+			y = fStart.Point.y,
+			z = fStart.Point.z
+		)
+		fEnd = fEdge.Vertexes[1]
+		sEnd = Point(
+			x = fEnd.Point.x,
+			y = fEnd.Point.y,
+			z = fEnd.Point.z
+		)
+		sLine = Line(
+	    	start = sStart,
+	    	end = sEnd
+		)
+		#add to data to be sent
+		data.elements.append(sLine)
 #send to Speckle
 from specklepy.transports.server import ServerTransport
 from specklepy.api import operations
