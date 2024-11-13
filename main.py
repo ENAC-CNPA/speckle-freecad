@@ -8,7 +8,7 @@ from specklepy.api.client import SpeckleClient
 from specklepy.api.credentials import get_default_account
 from specklepy.objects import Base
 from specklepy.objects.geometry import (
-     Box, Brep, BrepEdge, BrepFace, Circle, Curve, Interval, Line, Mesh, Plane, Point, Polyline, Vector
+     Box, Brep, BrepEdge, BrepFace, Circle, Curve, Interval, Line, Mesh, Plane, Point, Polyline, Surface, Vector
 )
 
 #set links to Speckle
@@ -53,6 +53,7 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(sBox)
+  
 	elif object.TypeId == 'Part::Circle':
 		#extract FreeCAD properties
 		propertiesList = object.PropertiesList
@@ -79,6 +80,7 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(sCircle)
+  
 	elif object.TypeId == 'Part::Line':
 		fEdge = object.Shape.Edges[0]
 		fStart = fEdge.Vertexes[0]
@@ -99,6 +101,48 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(sLine)
+  
+	elif object.TypeId == 'Part::RuledSurface':
+		fSurface = object.Shape.Faces[0].Surface
+		sDegreeU = fSurface.UDegree
+		sDegreeV = fSurface.VDegree
+		sRational = fSurface.isURational() or fSurface.isVRational()
+		fPoles = fSurface.getPoles()
+		sPointData = []
+		for subpoles in fPoles:
+			for pole in subpoles:
+				sPointData.append(pole.x)
+				sPointData.append(pole.y)
+				sPointData.append(pole.z)
+		sCountU = fSurface.NbUPoles
+		sCountV = fSurface.NbVPoles
+		sClosedU = fSurface.isUClosed()
+		sClosedV = fSurface.isVClosed()
+		sDomainUStart = fSurface.UKnotSequence[0]
+		sDomainUEnd = fSurface.UKnotSequence[-1]
+		sDomainVStart = fSurface.VKnotSequence[0]
+		sDomainVEnd = fSurface.VKnotSequence[-1]
+		sDomainU = Interval(start = sDomainUStart, end = sDomainUEnd)
+		sDomainV = Interval(start = sDomainVStart, end = sDomainVEnd)
+		sKnotsU = fSurface.UKnotSequence
+		sKnotsV = fSurface.VKnotSequence
+		sSurface = Surface(
+			degreeU = sDegreeU,
+			degreeV = sDegreeV,
+			rational = sRational,
+			pointData = sPointData,
+			countU = sCountU,
+			countV = sCountV,
+			closedU = sClosedU,
+			closedV = sClosedV,
+			domainU = sDomainU,
+			domainV = sDomainV,
+			knotsU = sKnotsU,
+			knotsV = sKnotsV
+		)
+		#add to data to be sent
+		data.elements.append(sSurface)
+  
 #send to Speckle
 from specklepy.transports.server import ServerTransport
 from specklepy.api import operations
