@@ -47,8 +47,8 @@ for object in objects:
 		#create Speckle box
 		sBox = Box(
 		    basePlane = basePlane,
-		    xSize = Interval.from_list([0, width.Value]),
-		    ySize = Interval.from_list([0, length.Value]),
+		    xSize = Interval.from_list([0, length.Value]),
+		    ySize = Interval.from_list([0, width.Value]),
 		    zSize = Interval.from_list([0, height.Value])
 		)
 		#add to data to be sent
