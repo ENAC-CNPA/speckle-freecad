@@ -15,7 +15,7 @@ from specklepy.objects.geometry import (
 client = SpeckleClient(host="https://app.speckle.systems/")
 account = get_default_account()
 client.authenticate_with_account(account)
-stream_id = "6cf358a40e" #set here your own stream id
+stream_id = "6cf358a40e"
 
 #set container of all elements
 data = Base()
@@ -47,8 +47,8 @@ for object in objects:
 		#create Speckle box
 		sBox = Box(
 		    basePlane = basePlane,
-		    xSize = Interval.from_list([0, length.Value]),
-		    ySize = Interval.from_list([0, width.Value]),
+		    xSize = Interval.from_list([0, width.Value]),
+		    ySize = Interval.from_list([0, length.Value]),
 		    zSize = Interval.from_list([0, height.Value])
 		)
 		#add to data to be sent
@@ -101,48 +101,137 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(sLine)
-  
-	elif object.TypeId == 'Part::RuledSurface':
-		fSurface = object.Shape.Faces[0].Surface
-		sDegreeU = fSurface.UDegree
-		sDegreeV = fSurface.VDegree
-		sRational = fSurface.isURational() or fSurface.isVRational()
-		fPoles = fSurface.getPoles()
-		sPointData = []
-		for subpoles in fPoles:
-			for pole in subpoles:
-				sPointData.append(pole.x)
-				sPointData.append(pole.y)
-				sPointData.append(pole.z)
-		sCountU = fSurface.NbUPoles
-		sCountV = fSurface.NbVPoles
-		sClosedU = fSurface.isUClosed()
-		sClosedV = fSurface.isVClosed()
-		sDomainUStart = fSurface.UKnotSequence[0]
-		sDomainUEnd = fSurface.UKnotSequence[-1]
-		sDomainVStart = fSurface.VKnotSequence[0]
-		sDomainVEnd = fSurface.VKnotSequence[-1]
-		sDomainU = Interval(start = sDomainUStart, end = sDomainUEnd)
-		sDomainV = Interval(start = sDomainVStart, end = sDomainVEnd)
-		sKnotsU = fSurface.UKnotSequence
-		sKnotsV = fSurface.VKnotSequence
-		sSurface = Surface(
-			degreeU = sDegreeU,
-			degreeV = sDegreeV,
-			rational = sRational,
-			pointData = sPointData,
-			countU = sCountU,
-			countV = sCountV,
-			closedU = sClosedU,
-			closedV = sClosedV,
-			domainU = sDomainU,
-			domainV = sDomainV,
-			knotsU = sKnotsU,
-			knotsV = sKnotsV
+	
+	#Speckle: Brep = Freecad: Face, etc
+	elif object.TypeId == 'Part::Face' or object.TypeId == 'Part::RuledSurface':
+		fShape = object.Shape
+		#map points and edges of the FreeCAD Brep by their coordinates
+		#to later find their index when building the Speckle Brep
+		fPointsMap = []
+		fVertexes = fShape.Vertexes
+		for vertex in fVertexes:
+			coordinates = (vertex.Point.x, vertex.Point.y, vertex.Point.z)
+			fPointsMap.append(coordinates)
+		fEdgesMap = []
+		fEdges = fShape.Edges
+		for edge in fEdges:
+			edgeCoordinates = []
+			vertexes = edge.Vertexes
+			for vertex in vertexes:
+				coordinates = (vertex.Point.x, vertex.Point.y, vertex.Point.z)
+				edgeCoordinates.append(coordinates)
+			fEdgesMap.append(edgeCoordinates)
+		fFaces = fShape.Faces
+		#convert Freecad Brep data to Speckle Brep data :
+		#create Speckle Surfaces for Brep
+		sSurfaces = []
+		for face in fFaces:
+			fSurface = face.Surface
+			sDegreeU = fSurface.UDegree
+			sDegreeV = fSurface.VDegree
+			sRational = fSurface.isURational() or fSurface.isVRational()
+			fPoles = fSurface.getPoles()
+			sPointData = []
+			for subpoles in fPoles:
+				for pole in subpoles:
+					sPointData.append(pole.x)
+					sPointData.append(pole.y)
+					sPointData.append(pole.z)
+			sCountU = fSurface.NbUPoles
+			sCountV = fSurface.NbVPoles
+			sClosedU = fSurface.isUClosed()
+			sClosedV = fSurface.isVClosed()
+			sDomainUStart = fSurface.UKnotSequence[0]
+			sDomainUEnd = fSurface.UKnotSequence[-1]
+			sDomainVStart = fSurface.VKnotSequence[0]
+			sDomainVEnd = fSurface.VKnotSequence[-1]
+			sDomainU = Interval(start = sDomainUStart, end = sDomainUEnd)
+			sDomainV = Interval(start = sDomainVStart, end = sDomainVEnd)
+			sKnotsU = fSurface.UKnotSequence
+			sKnotsV = fSurface.VKnotSequence
+			sSurface = Surface(
+				degreeU = sDegreeU,
+				degreeV = sDegreeV,
+				rational = sRational,
+				pointData = sPointData,
+				countU = sCountU,
+				countV = sCountV,
+				closedU = sClosedU,
+				closedV = sClosedV,
+				domainU = sDomainU,
+				domainV = sDomainV,
+				knotsU = sKnotsU,
+				knotsV = sKnotsV
+			)
+			sSurfaces.append(sSurface)
+		#create Speckle Curve3D for Brep
+		sCurve3D = []
+		for edge in fEdges:
+			fStart = edge.Vertexes[0]
+			sStart = Point(
+				x = fStart.Point.x,
+				y = fStart.Point.y,
+				z = fStart.Point.z
+			)
+			fEnd = edge.Vertexes[1]
+			sEnd = Point(
+				x = fEnd.Point.x,
+				y = fEnd.Point.y,
+				z = fEnd.Point.z
+			)
+			sLine = Line(
+	    		start = sStart,
+	    		end = sEnd
+			)
+			sCurve3D.append(sLine)
+		#create Speckle Vertices for Brep
+		sVertices = []
+		for vertex in fVertexes:
+			sPoint = Point(
+				x = vertex.Point.x,
+				y = vertex.Point.y,
+				z = vertex.Point.z
+			)
+			sVertices.append(sPoint)
+		#create Speckle Edges for Brep
+		sEdges = []
+		for i, edge in enumerate(fEdges):
+			vertexes = edge.Vertexes
+			startVertex = vertexes[0]
+			startCoordinates = (startVertex.Point.x, startVertex.Point.y, startVertex.Point.z)
+			endVertex = vertexes[1]
+			endCoordinates = (endVertex.Point.x, endVertex.Point.y, endVertex.Point.z)
+			for j, point in enumerate(fPointsMap):
+				if point == startCoordinates:
+					fStartIndex = j
+				elif point == endCoordinates:
+					fEndIndex = j	
+			sBrepEdge = BrepEdge(
+				Curve3dIndex = i,
+				StartIndex = fStartIndex,
+				EndIndex = fEndIndex
+			)
+			sEdges.append(sBrepEdge)
+		#create Speckle Faces for Brep
+		sFaces = []
+		for face in fFaces:
+			sBrepFace = BrepFace(
+				SurfaceIndex = 0,
+				OuterLoopIndex = 0,
+				OrientationReversal = False,
+				LoopIndices = [0]
+			)
+			sFaces.append(sBrepFace)
+		#create Speckle Brep
+		sBrep = Brep(
+			Surfaces = sSurfaces,
+			Curve3D = sCurve3D,
+			Vertices = sVertices,
+			Edges = sEdges, #cause un bug, voir lignes 211 à 213
+			#Faces = sFaces #cause un bug
 		)
 		#add to data to be sent
-		data.elements.append(sSurface)
-  
+		data.elements.append(sBrep)
 #send to Speckle
 from specklepy.transports.server import ServerTransport
 from specklepy.api import operations
