@@ -8,7 +8,7 @@ from specklepy.api.client import SpeckleClient
 from specklepy.api.credentials import get_default_account
 from specklepy.objects import Base
 from specklepy.objects.geometry import (
-     Box, Brep, BrepEdge, BrepFace, Circle, Curve, Interval, Line, Mesh, Plane, Point, Polyline, Surface, Vector
+     Box, Brep, BrepEdge, BrepFace, BrepLoop, BrepLoopType, BrepTrim, BrepTrimType, Circle, Curve, Interval, Line, Mesh, Plane, Point, Polyline, Surface, Vector
 )
 
 #set links to Speckle
@@ -53,7 +53,6 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(sBox)
-  
 	elif object.TypeId == 'Part::Circle':
 		#extract FreeCAD properties
 		propertiesList = object.PropertiesList
@@ -80,7 +79,6 @@ for object in objects:
 		)
 		#add to data to be sent
 		data.elements.append(sCircle)
-  
 	elif object.TypeId == 'Part::Line':
 		fEdge = object.Shape.Edges[0]
 		fStart = fEdge.Vertexes[0]
@@ -103,7 +101,8 @@ for object in objects:
 		data.elements.append(sLine)
 	
 	#Speckle: Brep = Freecad: Face, etc
-	elif object.TypeId == 'Part::Face' or object.TypeId == 'Part::RuledSurface':
+	#elif object.TypeId == 'Part::Face' or object.TypeId == 'Part::RuledSurface':
+	elif object.TypeId == 'Part::RuledSurface':
 		fShape = object.Shape
 		#map points and edges of the FreeCAD Brep by their coordinates
 		#to later find their index when building the Speckle Brep
@@ -229,6 +228,179 @@ for object in objects:
 			Vertices = sVertices,
 			Edges = sEdges, #cause un bug, voir lignes 211 à 213
 			#Faces = sFaces #cause un bug
+		)
+		#add to data to be sent
+		data.elements.append(sBrep)
+		
+	#Speckle: WIP create Speckle Brep from scratch
+	elif object.TypeId == 'Part::Face' :
+		#create Speckle Points
+		sVertices = []
+		point1 = Point(
+			x = 0.0,
+			y = 0.0,
+			z = 0.0
+		)
+		sVertices.append(point1)
+		point2 = Point(
+			x = 1.0,
+			y = 0.0,
+			z = 0.0
+		)
+		sVertices.append(point2)
+		point3 = Point(
+			x = 0.0,
+			y = 1.0,
+			z = 0.0
+		)
+		sVertices.append(point3)
+		#create Speckle Curve3D
+		sCurve3D = []
+		line1 = Line(
+	    	start = point1,
+	    	end = point2
+		)
+		sCurve3D.append(line1)
+		line2 = Line(
+	    	start = point2,
+	    	end = point3
+		)
+		sCurve3D.append(line2)
+		line3 = Line(
+	    	start = point3,
+	    	end = point1
+		)
+		sCurve3D.append(line3)
+		#create Speckle Curve2D
+		sCurve2D = [line1, line2, line3]
+		#create Speckle Surface
+		sSurfaces = []
+		firstSurface = Surface(
+			degreeU = 1,
+			degreeV = 1,
+			rational = False,
+			area = 0.5,
+			pointData = [
+			    0.0, 0.0, 0.0,
+			    1.0, 0.0, 0.0,
+			    0.0, 1.0, 0.0
+			],
+			countU = 2,
+			countV = 2,
+			#bbox = bbox,
+			closedU = False,
+			closedV = False,
+			domainU = Interval(
+				start=0.0,
+				end=1.0
+			),
+			domainV = Interval(
+				start = 0.0,
+				end = 1.0
+			),
+			knotsU = [0.0, 1.0],
+			knotsV = [0.0, 1.0],
+		)
+		sSurfaces.append(firstSurface)
+		#create Speckle Brep Edge
+		sEdges = []
+		edge1 = BrepEdge(
+			Curve3dIndex = 0,
+			TrimIndices = [0],
+			StartIndex = 0,
+			EndIndex = 1,
+			ProxyCurveIsReversed = False,
+			Domain=Interval(start = 0.0, end = 1.0)
+		)
+		sEdges.append(edge1)
+		edge2 = BrepEdge(
+			Curve3dIndex = 1,
+			TrimIndices = [1],
+			StartIndex = 1,
+			EndIndex = 2,
+			ProxyCurveIsReversed = False,
+			Domain=Interval(start = 0.0, end = 1.0)
+		)
+		sEdges.append(edge2)
+		edge3 = BrepEdge(
+			Curve3dIndex = 2,
+			TrimIndices = [2],
+			StartIndex = 2,
+			EndIndex = 0,
+			ProxyCurveIsReversed = False,
+			Domain=Interval(start = 0.0, end = 1.0)
+		)
+		sEdges.append(edge3)
+		#create Speckle Brep Loop
+		sLoops = []
+		loop1 = BrepLoop(
+			FaceIndex = 0,
+			TrimIndices = [0, 1, 2],
+			Type = BrepLoopType.Outer
+		)
+		sLoops.append(loop1)
+		#create Speckle Brep Face
+		sFaces = []
+		face1 = BrepFace(
+			SurfaceIndex = 0,
+			OuterLoopIndex = 0,
+			OrientationReversed = False,
+			LoopIndices = [0]
+		)
+		sFaces.append(face1)
+		#create Speckle Brep Trims
+		sTrims = []
+		trim1 = BrepTrim(
+			EdgeIndex = 0,
+			StartIndex = 0,
+			EndIndex = 1,
+			FaceIndex = 0,
+			LoopIndex = 0,
+			CurveIndex = 0,
+			IsoStatus = 0,
+			TrimType=BrepTrimType.Boundary,
+			IsReversed = False,
+			Domain=Interval(start = 0.0, end = 1.0),
+		)
+		sTrims.append(trim1)
+		trim2 = BrepTrim(
+			EdgeIndex = 1,
+			StartIndex = 1,
+			EndIndex = 2,
+			FaceIndex = 0,
+			LoopIndex = 0,
+			CurveIndex = 1,
+			IsoStatus = 0,
+			TrimType=BrepTrimType.Boundary,
+			IsReversed = False,
+			Domain=Interval(start = 0.0, end = 1.0),
+		)
+		sTrims.append(trim2)
+		trim3 = BrepTrim(
+			EdgeIndex = 2,
+			StartIndex = 2,
+			EndIndex = 0,
+			FaceIndex = 0,
+			LoopIndex = 0,
+			CurveIndex = 2,
+			IsoStatus = 0,
+			TrimType=BrepTrimType.Boundary,
+			IsReversed = False,
+			Domain=Interval(start = 0.0, end = 1.0),
+		)
+		sTrims.append(trim3)
+		#create Speckle Brep
+		sBrep = Brep(
+			Surfaces = sSurfaces,
+			Curve3D = sCurve3D,
+			Curve2D = sCurve2D,
+			Vertices = sVertices,
+			Edges = sEdges,
+			Loops = sLoops,
+			Faces = sFaces,
+			Trims = sTrims,
+			IsClosed = False,
+			Orientation = 0
 		)
 		#add to data to be sent
 		data.elements.append(sBrep)
