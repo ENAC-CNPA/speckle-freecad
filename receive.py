@@ -10,8 +10,8 @@ if __name__ == "__main__":
 
     transport = wrapper.get_transport()
 	
-	#id of Model version:
-    received = operations.receive("f10fb97b5f8fd16491477c184002f3db", transport)
+	#id of main collection:
+    received = operations.receive("06d38d0eb789ad9ffb94b45ce4e1448a", transport)
 
 allElements = []
 
@@ -24,7 +24,20 @@ def process_item(item):
 process_item(received)
 
 for element in allElements:
-	if element.speckle_type == "Objects.Geometry.Brep":
+	
+	if element.speckle_type == "Objects.Geometry.Circle":
+		sRadius = element.radius
+		sPlane = element.plane
+		sOrigin = sPlane.origin
+		sNormal = sPlane.normal
+		fPosition = App.Vector(sOrigin.x, sOrigin.y, sOrigin.z)
+		fAxis = App.Vector(sNormal.x, sNormal.y, sNormal.z)
+		fRadius = sRadius
+		fCircle = Part.Circle(fPosition, fAxis, fRadius)
+		fCircleShape = fCircle.toShape()
+		Part.show(fCircleShape)
+		
+	elif element.speckle_type == "Objects.Geometry.Brep":
 		
 		sBrep = element
 
