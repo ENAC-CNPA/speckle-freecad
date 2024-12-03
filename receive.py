@@ -10,6 +10,7 @@ if __name__ == "__main__":
 
     transport = wrapper.get_transport()
 
+    #id of the object :
     rec = operations.receive("6c99bc17d0d10833f3c01855c37174fc", transport)
 
 sBrep = rec
