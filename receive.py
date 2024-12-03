@@ -10,25 +10,38 @@ if __name__ == "__main__":
 
     transport = wrapper.get_transport()
 
-    rec = operations.receive("df70892b7556cde3630aa3a1d67377fe", transport)
+    rec = operations.receive("6c99bc17d0d10833f3c01855c37174fc", transport)
 
 sBrep = rec
 
-fVertexes = []
-for vertex in sBrep.Vertices :
-	fVertex = App.Vector(vertex.x, vertex.y, vertex.z)
-	fVertexes.append(fVertex)
-
+sCurve3D = sBrep.Curve3D
 fEdges = []
-for curve3D in sBrep.Curve3D :
-	fStart = App.Vector(curve3D.start.x, curve3D.start.y, curve3D.start.z)
-	fEnd = App.Vector(curve3D.end.x, curve3D.end.y, curve3D.end.z)
+for curve in sCurve3D :
+	sStart = curve.start
+	sEnd = curve.end
+	fStart = App.Vector(sStart.x, sStart.y, sStart.z)
+	fEnd = App.Vector(sEnd.x, sEnd.y, sEnd.z)
 	fLineSegment = Part.LineSegment(fStart, fEnd)
 	fEdge = fLineSegment.toShape()
 	fEdges.append(fEdge)
 
-fWire = Part.Wire(fEdges)
+sLoops = sBrep.Loops
+sTrims = sBrep.Trims
 
-fFace = Part.Face(fWire)
+fFaces = []
+for face in sBrep.Faces :
+	sOuterLoopIndex = face.OuterLoopIndex
+	sOuterLoop = sLoops[sOuterLoopIndex]
+	sTrimIndices = sOuterLoop.TrimIndices
+	sOwnTrims = [sTrims[i] for i in sTrimIndices]
+	fOwnEdges = []
+	for trim in sOwnTrims :
+		sEdgeIndex = trim.EdgeIndex
+		fOwnEdges.append(fEdges[sEdgeIndex])
+	fWire = Part.Wire(fOwnEdges)
+	fFace = Part.Face(fWire)
+	fFaces.append(fFace)
 
-Part.show(fFace)
+fShell = Part.Shell(fFaces)
+
+Part.show(fShell)
