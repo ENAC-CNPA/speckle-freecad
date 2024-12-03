@@ -37,6 +37,17 @@ for element in allElements:
 		fCircleShape = fCircle.toShape()
 		Part.show(fCircleShape)
 		
+	elif element.speckle_type == "Objects.Geometry.Arc":
+		sStartPoint = element.startPoint
+		sMidPoint = element.midPoint
+		sEndPoint = element.endPoint
+		fStartPoint = App.Vector(sStartPoint.x, sStartPoint.y, sStartPoint.z)
+		fMidPoint = App.Vector(sMidPoint.x, sMidPoint.y, sMidPoint.z)
+		fEndPoint = App.Vector(sEndPoint.x, sEndPoint.y, sEndPoint.z)
+		fArc = Part.Arc(fStartPoint, fMidPoint, fEndPoint)
+		fArcShape = fArc.toShape()
+		Part.show(fArcShape)
+		
 	elif element.speckle_type == "Objects.Geometry.Brep":
 		
 		sBrep = element
