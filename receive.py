@@ -11,7 +11,7 @@ if __name__ == "__main__":
     transport = wrapper.get_transport()
 	
 	#id of main collection:
-    received = operations.receive("06d38d0eb789ad9ffb94b45ce4e1448a", transport)
+    received = operations.receive("7f8887c6ebb4c5d80639ddf68e6cb656", transport)
 
 allElements = []
 
@@ -22,6 +22,17 @@ def process_item(item):
 	else:
 		allElements.append(item)
 process_item(received)
+
+def toFreecadArc(item):
+	sStartPoint = item.startPoint
+	sMidPoint = item.midPoint
+	sEndPoint = item.endPoint
+	fStartPoint = App.Vector(sStartPoint.x, sStartPoint.y, sStartPoint.z)
+	fMidPoint = App.Vector(sMidPoint.x, sMidPoint.y, sMidPoint.z)
+	fEndPoint = App.Vector(sEndPoint.x, sEndPoint.y, sEndPoint.z)
+	fArc = Part.Arc(fStartPoint, fMidPoint, fEndPoint)
+	fArcShape = fArc.toShape()
+	return fArcShape
 
 for element in allElements:
 	
@@ -38,14 +49,7 @@ for element in allElements:
 		Part.show(fCircleShape)
 		
 	elif element.speckle_type == "Objects.Geometry.Arc":
-		sStartPoint = element.startPoint
-		sMidPoint = element.midPoint
-		sEndPoint = element.endPoint
-		fStartPoint = App.Vector(sStartPoint.x, sStartPoint.y, sStartPoint.z)
-		fMidPoint = App.Vector(sMidPoint.x, sMidPoint.y, sMidPoint.z)
-		fEndPoint = App.Vector(sEndPoint.x, sEndPoint.y, sEndPoint.z)
-		fArc = Part.Arc(fStartPoint, fMidPoint, fEndPoint)
-		fArcShape = fArc.toShape()
+		fArcShape = toFreecadArc(element)
 		Part.show(fArcShape)
 		
 	elif element.speckle_type == "Objects.Geometry.Brep":
@@ -55,13 +59,17 @@ for element in allElements:
 		sCurve3D = sBrep.Curve3D
 		fEdges = []
 		for curve in sCurve3D :
-			sStart = curve.start
-			sEnd = curve.end
-			fStart = App.Vector(sStart.x, sStart.y, sStart.z)
-			fEnd = App.Vector(sEnd.x, sEnd.y, sEnd.z)
-			fLineSegment = Part.LineSegment(fStart, fEnd)
-			fEdge = fLineSegment.toShape()
-			fEdges.append(fEdge)
+			if curve.speckle_type == "Objects.Geometry.Line":
+				sStart = curve.start
+				sEnd = curve.end
+				fStart = App.Vector(sStart.x, sStart.y, sStart.z)
+				fEnd = App.Vector(sEnd.x, sEnd.y, sEnd.z)
+				fLineSegment = Part.LineSegment(fStart, fEnd)
+				fEdge = fLineSegment.toShape()
+				fEdges.append(fEdge)
+			elif curve.speckle_type == "Objects.Geometry.Arc":
+				fArcShape = toFreecadArc(curve)
+				fEdges.append(fArcShape)
 		
 		sLoops = sBrep.Loops
 		sTrims = sBrep.Trims
