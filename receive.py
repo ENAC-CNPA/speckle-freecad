@@ -11,7 +11,7 @@ if __name__ == "__main__":
     transport = wrapper.get_transport()
 	
 	#id of main collection:
-    received = operations.receive("7f8887c6ebb4c5d80639ddf68e6cb656", transport)
+    received = operations.receive("8ad53f69de6abf1bf81ab343f0361f51", transport)
 
 allElements = []
 
@@ -75,6 +75,7 @@ for element in allElements:
 		sTrims = sBrep.Trims
 		
 		fFaces = []
+		
 		for face in sBrep.Faces :
 			sOuterLoopIndex = face.OuterLoopIndex
 			sOuterLoop = sLoops[sOuterLoopIndex]
@@ -85,9 +86,12 @@ for element in allElements:
 				sEdgeIndex = trim.EdgeIndex
 				fOwnEdges.append(fEdges[sEdgeIndex])
 			fWire = Part.Wire(fOwnEdges)
-			fFace = Part.Face(fWire)
+			#fFace = Part.Face(fWire) #works only for planar faces
+			fFace = Part.makeFilledFace(fWire)
 			fFaces.append(fFace)
 		
 		fShell = Part.Shell(fFaces)
 		
-		Part.show(fShell)
+		fSolid = Part.Solid(fShell)
+		
+		Part.show(fSolid)
