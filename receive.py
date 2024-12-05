@@ -75,6 +75,63 @@ for element in allElements:
 		sTrims = sBrep.Trims
 		
 		fFaces = []
+  
+		"""
+		#building Surfaces (WIP) :
+		sSurfaces = sBrep.Surfaces
+		for surface in sSurfaces:
+			
+			sDegreeU = surface.degreeU
+			sDegreeV = surface.degreeV
+			sPointData = surface.pointData
+			print(sPointData)
+			sCountU = surface.countU
+			sCountV = surface.countV
+			sKnotsU = surface.knotsU
+			sKnotsV = surface.knotsV
+			
+			fPoles = []
+			index = 0
+			for v in range(sCountV):
+				row = []
+				for u in range(sCountU):
+					x = sPointData[index]
+					y = sPointData[index + 1]
+					z = sPointData[index + 2]
+					fVertex = App.Vector(x, y, z)
+					row.append(fVertex)
+					index += 4
+				fPoles.append(row)
+			print(fPoles)
+			fUDegree = sDegreeU
+			fVDegree = sDegreeV
+			fUKnots = sKnotsU
+			fVKnots = sKnotsV
+			fUMults = [2, 2]
+			fVMults = [2, 2]
+			fUPeriodic = False
+			fVPeriodic = False
+			
+			fBSpline = Part.BSplineSurface()
+			
+			fBSpline.buildFromPolesMultsKnots(
+				fPoles,
+				fUMults,
+				fVMults,
+				fUKnots,
+				fVKnots,
+				fUPeriodic,
+				fVPeriodic,
+				fUDegree,
+				fVDegree,
+				#fWeights?
+			)
+			fBSplineShape = fBSpline.toShape()
+			fFaces.append(fBSplineShape)
+		
+		fShell = Part.Shell(fFaces)
+		Part.show(fShell)
+		"""
 		
 		for face in sBrep.Faces :
 			sOuterLoopIndex = face.OuterLoopIndex
