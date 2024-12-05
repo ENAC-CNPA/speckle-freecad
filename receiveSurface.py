@@ -1,3 +1,4 @@
+#WIP
 import FreeCAD as App
 import Part
 
@@ -11,7 +12,7 @@ if __name__ == "__main__":
     transport = wrapper.get_transport()
 	
 	#id of main collection:
-    received = operations.receive("8ad53f69de6abf1bf81ab343f0361f51", transport)
+    received = operations.receive("9678757ba141d255e3445bcfdd34d718", transport)
 
 allElements = []
 
@@ -76,22 +77,56 @@ for element in allElements:
 		
 		fFaces = []
 		
-		for face in sBrep.Faces :
-			sOuterLoopIndex = face.OuterLoopIndex
-			sOuterLoop = sLoops[sOuterLoopIndex]
-			sTrimIndices = sOuterLoop.TrimIndices
-			sOwnTrims = [sTrims[i] for i in sTrimIndices]
-			fOwnEdges = []
-			for trim in sOwnTrims :
-				sEdgeIndex = trim.EdgeIndex
-				fOwnEdges.append(fEdges[sEdgeIndex])
-			fWire = Part.Wire(fOwnEdges)
-			#fFace = Part.Face(fWire) #works only for planar faces
-			fFace = Part.makeFilledFace(fWire)
-			fFaces.append(fFace)
+		#building Surfaces (wip) :
+		sSurfaces = sBrep.Surfaces
+		for surface in sSurfaces:
+			
+			sDegreeU = surface.degreeU
+			sDegreeV = surface.degreeV
+			sPointData = surface.pointData
+			sCountU = surface.countU
+			sCountV = surface.countV
+			sKnotsU = surface.knotsU
+			sKnotsV = surface.knotsV
+			
+			fPoles = []
+			index = 0
+			for v in range(sCountV):
+				row = []
+				for u in range(sCountU):
+					x = sPointData[index]
+					y = sPointData[index + 1]
+					z = sPointData[index + 2]
+					fVertex = App.Vector(x, y, z)
+					row.append(fVertex)
+					index += 4
+				fPoles.append(row)
+			fUDegree = sDegreeU
+			fVDegree = sDegreeV
+			fUKnots = sKnotsU
+			fVKnots = sKnotsV
+			fUMults = [2, 2]
+			fVMults = [2, 2]
+			fUPeriodic = False
+			fVPeriodic = False
+			
+			fBSpline = Part.BSplineSurface()
+			
+			fBSpline.buildFromPolesMultsKnots(
+				fPoles,
+				fUMults,
+				fVMults,
+				fUKnots,
+				fVKnots,
+				fUPeriodic,
+				fVPeriodic,
+				fUDegree,
+				fVDegree,
+				#fWeights?
+			)
+			fBSplineShape = fBSpline.toShape()
+			fFaces.append(fBSplineShape)
 		
 		fShell = Part.Shell(fFaces)
 		
-		fSolid = Part.Solid(fShell)
-		
-		Part.show(fSolid)
+		Part.show(fShell)
