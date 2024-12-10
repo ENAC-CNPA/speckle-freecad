@@ -11,7 +11,7 @@ if __name__ == "__main__":
     transport = wrapper.get_transport()
 	
 	#id of main collection:
-    received = operations.receive("8ad53f69de6abf1bf81ab343f0361f51", transport)
+    received = operations.receive("af0d1b8acb61b337dd761119e3c7013a", transport)
 
 allElements = []
 

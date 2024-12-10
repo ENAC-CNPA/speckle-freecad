@@ -1,7 +1,8 @@
 Prototype of a Speckle connector for FreeCAD Part (OpenCASCADE) in its early phase.  
 Is currently supported : 
--Sending Box, Circle, Line.
--Receiving Circle, Arc, Curve, Brep with straight or arc edges and faces filled from wire.  
+-send.py : Sending Box, Circle, Line.
+-receive.py : Receiving Circle, Arc, Curve, Brep with straight or arc edges and faces filled from wire. 
+  -The conversion from Speckle Surfaces to Freecad BSplineSurfaces is working in receiveSurface.py. Still to do to merge with Brep in receive.py : trim the surface with face borders.
 The codes send.py and receive.py work currently as FreeCAD Macros.  
 To test it :  
 1. Create a Speckle account and install the Speckle manager  
