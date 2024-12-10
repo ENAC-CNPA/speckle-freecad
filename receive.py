@@ -51,7 +51,62 @@ for element in allElements:
 	elif element.speckle_type == "Objects.Geometry.Arc":
 		fArcShape = toFreecadArc(element)
 		Part.show(fArcShape)
+	
+	elif element.speckle_type == "Objects.Geometry.Curve":
 		
+		#get Speckle parameters :
+		sDegree = element.degree
+		sPeriodic = element.periodic
+		sPoints = element.points
+		sWeights = element.weights
+		sKnots = element.knots
+		
+		#convert to Freecad parameters :
+		fPoles = []
+		for i in range(0, len(sPoints), 3):
+			pole = App.Vector(sPoints[i], sPoints[i+1], sPoints[i+2])
+			fPoles.append(pole)
+		
+		def sKnots_to_fMults(sKnots):
+			fMultsList = []
+			i = 0
+			while i < len(sKnots):
+				count = 1
+				while i + 1 < len(sKnots) and sKnots[i] == sKnots[i + 1]:
+					count += 1
+					i += 1
+				fMultsList.append(count)
+				i += 1
+			return tuple(fMultsList)
+		fMults = sKnots_to_fMults(sKnots)
+		
+		def sKnots_to_fKnots(sKnots):
+			fKnotsList = []
+			i = 0
+			while i < len(sKnots):
+				while i + 1 < len(sKnots) and sKnots[i] == sKnots[i + 1]:
+					i += 1
+				fKnotsList.append(sKnots[i])
+				i += 1
+			return tuple(fKnotsList)
+		fKnots = sKnots_to_fKnots(sKnots)
+		
+		fDegree = sDegree
+		fPeriodic = sPeriodic
+		fWeights = tuple(sWeights)
+		
+		#Build Freecad BSplineCurve :
+		fBSpline = Part.BSplineCurve()
+		fBSpline.buildFromPolesMultsKnots(
+			poles = fPoles,
+			mults = fMults,
+			knots = fKnots,
+			periodic = fPeriodic,
+			degree = fDegree,
+			weights = fWeights)
+		fBSplineShape = fBSpline.toShape()
+		Part.show(fBSplineShape)
+	
 	elif element.speckle_type == "Objects.Geometry.Brep":
 		
 		sBrep = element
