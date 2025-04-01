@@ -6,6 +6,8 @@ from OCC.Core.TColStd import TColStd_Array1OfReal, TColStd_Array1OfInteger
 from OCC.Core.Geom import Geom_BSplineCurve, Geom_Line, Geom_BSplineSurface, Geom_Circle, Geom_TrimmedCurve
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeShell
 from OCC.Display.SimpleGui import init_display
+from OCC.Core.ShapeFix import ShapeFix_Edge, ShapeFix_Shape
+from OCC.Core.TopoDS import TopoDS_Edge, TopoDS_Face
 
 # Initialize the display
 display, start_display, add_menu, add_function_to_menu = init_display()
@@ -31,6 +33,9 @@ if __name__ == "__main__":
     #received = operations.receive("cdc9f429541627224c00610898c664d7", transport) # pentagone face
     #received = operations.receive("390dc996c2567991b1f36004c20cba69", transport) # circular face
     received = operations.receive("0bd349d32c8a9b00942709495e7b8dab", transport) # arch face
+    #received = operations.receive("3b320207576b80c0134fde287653806e", transport) # 3D surface
+    #received = operations.receive("9c6c57fc183435879178ea8b73ebf963", transport) # trimmed 3D surface
+    #received = operations.receive("972bd504c8bad2a8cc83b5a0147307c5", transport) # planar rectangular face with rectangular holes
     
     
 all_elements = []
@@ -234,24 +239,12 @@ for element in all_elements:
         s_brep = element
         
         s_curve3D = s_brep.Curve3D
-        
-        o_edges = []
-        
-        for curve in s_curve3D :
-            if curve.speckle_type == "Objects.Geometry.Line":
-                o_edge = line_from_speckle_to_occ(curve)
-                o_edges.append(o_edge)
-            elif curve.speckle_type == "Objects.Geometry.Circle":
-                o_edge = circle_from_speckle_to_occ(curve)
-                o_edges.append(o_edge)
-            elif curve.speckle_type == "Objects.Geometry.Arc":
-                o_edge = arc_from_speckle_to_occ(curve)
-                o_edges.append(o_edge)
-        
         s_loops = s_brep.Loops
         s_trims = s_brep.Trims
         
         o_faces = []
+        
+        o_surfaces = []
 		
 		# Receive surface
         s_surfaces = s_brep.Surfaces
@@ -314,10 +307,44 @@ for element in all_elements:
             o_b_spline_surface = Geom_BSplineSurface(
                 o_poles, o_knotsU, o_knotsV, o_multsU, o_multsV, o_degreeU, o_degreeV, o_uPeriodic, o_vPeriodic
             )
-            
+                        
             # Convert the surface into a TopoDS_Face
             o_surface = BRepBuilderAPI_MakeFace(o_b_spline_surface, 1e-6).Face()
             
+            o_surfaces.append(o_surface)
+        
+        # List edges and create pcurves
+        def create_edge(curve):
+            if curve.speckle_type == "Objects.Geometry.Line":
+                return line_from_speckle_to_occ(curve)
+            elif curve.speckle_type == "Objects.Geometry.Circle":
+                return circle_from_speckle_to_occ(curve)
+            elif curve.speckle_type == "Objects.Geometry.Arc":
+                return arc_from_speckle_to_occ(curve)
+        
+        o_edges = []
+        o_pcurves = []
+        
+        for curve in s_curve3D :
+            edge = create_edge(curve)
+            
+            face = o_surfaces[0]
+            is_seam = False
+            precision = 0.0
+            
+            print("edge type:", type(edge))
+            print("face type:", type(face))
+            print("is_seam type:", type(is_seam))
+            print("precision type:", type(precision))
+
+            # Create a ShapeFix_Edge instance
+            fix_edge = ShapeFix_Edge.FixAddPCurve(edge, face, is_seam, precision)
+            print(fix_edge)
+            o_edges.append(edge)
+        
+        s_loops = s_brep.Loops
+        s_trims = s_brep.Trims
+        
         # Collect the edges to form a wire
         o_wire_maker = BRepBuilderAPI_MakeWire()
         for edge in o_edges:
@@ -327,8 +354,13 @@ for element in all_elements:
         # Trim the face with the wire
         o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_b_spline_surface, o_wire)
         o_trimmed_face = o_trimmed_face_maker.Face()
+        
+        # Fix face
+        fixer = ShapeFix_Shape(o_trimmed_face)
+        fixer.Perform()
+        o_fixed_face = fixer.Shape()
             
         # Display Brep
-        display.DisplayShape(o_trimmed_face, update=True)
+        display.DisplayShape(o_fixed_face, update=True)
         
     start_display()
