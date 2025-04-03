@@ -4,10 +4,10 @@ from OCC.Core.GC import GC_MakeArcOfCircle
 from OCC.Core.TColgp import TColgp_Array1OfPnt, TColgp_Array2OfPnt, TColgp_Array1OfPnt2d
 from OCC.Core.TColStd import TColStd_Array1OfReal, TColStd_Array1OfInteger
 from OCC.Core.Geom import Geom_BSplineCurve, Geom_Line, Geom_BSplineSurface, Geom_Circle, Geom_TrimmedCurve
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeShell
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeShell, BRepBuilderAPI_Sewing, BRepBuilderAPI_MakeSolid
 from OCC.Display.SimpleGui import init_display
 from OCC.Core.ShapeFix import ShapeFix_Edge, ShapeFix_Shape
-from OCC.Core.TopoDS import TopoDS_Edge, TopoDS_Face
+from OCC.Core.TopoDS import TopoDS_Edge, TopoDS_Face, TopoDS_Shell, topods
 from OCC.Core.BRep import BRep_Tool
 from OCC.Core.Geom2d import Geom2d_Line, Geom2d_Circle, Geom2d_TrimmedCurve
 from OCC.Core.gp import gp_Pnt2d, gp_Lin2d, gp_Circ2d, gp_Ax2d, gp_Vec2d, gp_Dir2d
@@ -44,16 +44,18 @@ if __name__ == "__main__":
     #received = operations.receive("161c29e5346e8988ab87c00aa5477630", transport) # planar triangular face with triangular hole
     #received = operations.receive("1008040021ab18d29392598684ffe569", transport) # planar pentagonal face with pentagonal hole
     #received = operations.receive("b4a7e732d4f03bea608b59e311f0bf52", transport) # planar pentagonal face with arched hole
-    #received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # planar pentagonal face with circular hole
+    received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # planar pentagonal face with circular hole
     #received = operations.receive("397dfde2f1e10379f7db810a0e27644c", transport) # planar pentagonal face with multiple holes
     #received = operations.receive("eb5d50ae43a78dcecc4a84e52f179ecb", transport) # planar pentagonal face with multiple holes of each type
     #received = operations.receive("3b320207576b80c0134fde287653806e", transport) # 3D surface
     #received = operations.receive("de3d9777e53fac1b047ff019e594f63e", transport) # spherical triangular face
     #received = operations.receive("42bb9190e8dc0c071898bb434e274f9d", transport) # loft of arcs of circles
     #received = operations.receive("9c6c57fc183435879178ea8b73ebf963", transport) # trimmed 3D surface
-    received = operations.receive("bc043113ca32744823c6c627f934469e", transport) # trimmed 3D surface with hole
+    #received = operations.receive("bc043113ca32744823c6c627f934469e", transport) # trimmed 3D surface with hole
     #received = operations.receive("972bd504c8bad2a8cc83b5a0147307c5", transport) # planar rectangular face with rectangular holes
-    
+    #received = operations.receive("7efc65e33c33f548e1c05ec425203164", transport) # pyramid 
+    #received = operations.receive("8b86058cc3d1f87ff8e47e1156e9a5e0", transport) # pyramid with hole on one face 
+    #received = operations.receive("376cc583e33399ef7f729bdd20ee9b40", transport) # one face of the pyramid with hole 
     
 all_elements = []
 
@@ -373,17 +375,18 @@ for element in all_elements:
         
         s_brep = element
         
+        s_surfaces = s_brep.Surfaces
         s_curve3D = s_brep.Curve3D
         s_curve2D = s_brep.Curve2D
         s_loops = s_brep.Loops
+        s_faces = s_brep.Faces
         s_trims = s_brep.Trims
-        
-        o_faces = []
-        o_TopoDS_Faces = []
-        o_Geom_Surfaces = []
+        print(s_brep.IsClosed)
 		
-		# Receive surface
-        s_surfaces = s_brep.Surfaces
+		# Surfaces
+        o_Geom_Surfaces = []
+        o_TopoDS_Faces = []
+        
         for surface in s_surfaces:
             
             # Get Speckle parameters
@@ -451,8 +454,7 @@ for element in all_elements:
             
             o_TopoDS_Faces.append(o_surface)
             
-        #display.DisplayShape(o_TopoDS_Faces[0], update=True)
-        
+        # Edges        
         # List edges and create pcurves
         def create_edge(element):
             if element.speckle_type == "Objects.Geometry.Line":
@@ -474,46 +476,85 @@ for element in all_elements:
             # Convert Speckle 2D curve to OCC Geom2d_Curve
             pcurve = curve2D_from_speckle_to_occ(curve2D)
             o_Geom2d_Curves.append(pcurve)
+        
+        # Prepare Shell
+        if len(s_faces) > 1:
+            sewing = BRepBuilderAPI_Sewing()
             
-        # Loops and trims
-        for i, loop in enumerate(s_loops):
-            # Get Speckle parameters
-            FaceIndex = loop.FaceIndex
-            TrimIndices = loop.TrimIndices
+        # Faces
+        for k, face in enumerate(s_faces):
+            SurfaceIndex = face.SurfaceIndex
+            print(SurfaceIndex)
+            OuterLoopIndex = face.OuterLoopIndex
+            print(OuterLoopIndex)
+            LoopIndices = face.LoopIndices
+            print(LoopIndices)
             
-            # Create Wire Maker
-            o_wire_maker = BRepBuilderAPI_MakeWire()
+            loops = []
+            for j, loop in enumerate(s_loops):
+                if j == OuterLoopIndex:
+                    outer_loop = loop
+                elif j in LoopIndices:
+                    loops.append(loop)
+            loops.insert(0, outer_loop)
+            print(loops)
             
-            # Inspect Trims
-            trims = [s_trims[i] for i in TrimIndices]
-            for trim in trims:
-                # Attach pcurve to edge
-                EdgeIndex = trim.EdgeIndex
-                edge = o_TopoDS_Edges[EdgeIndex]
-                CurveIndex = trim.CurveIndex
-                pcurve = o_Geom2d_Curves[CurveIndex]
-                face = o_TopoDS_Faces[0]
-                tolerance = 1e-3
-                builder = BRep_Builder()
-                builder.UpdateEdge(edge, pcurve, face, tolerance)
-                # Add edge to wire
-                o_wire_maker.Add(edge)
+            # Loops and trims
+            for i, loop in enumerate(loops):
+                # Get Speckle parameters
+                TrimIndices = loop.TrimIndices
                 
-            # Make Wire and Trim the Surface
-            o_wire = o_wire_maker.Wire()
-            if i == 0:
-                o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_Geom_Surfaces[FaceIndex], o_wire, True)
-                o_trimmed_face = o_trimmed_face_maker.Face()
+                # Create Wire Maker
+                o_wire_maker = BRepBuilderAPI_MakeWire()
+                
+                # Inspect Trims
+                trims = [s_trims[i] for i in TrimIndices]
+                for trim in trims:
+                    # Attach pcurve to edge
+                    edge = o_TopoDS_Edges[trim.EdgeIndex]
+                    pcurve = o_Geom2d_Curves[trim.CurveIndex]
+                    o_TopoDS_Face = o_TopoDS_Faces[k]
+                    tolerance = 1e-3
+                    builder = BRep_Builder()
+                    builder.UpdateEdge(edge, pcurve, o_TopoDS_Face, tolerance)
+                    # Add edge to wire
+                    o_wire_maker.Add(edge)
+                    
+                # Make Wire and Trim the Surface
+                o_wire = o_wire_maker.Wire()
+                if i == 0:
+                    o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_Geom_Surfaces[SurfaceIndex], o_wire, True)
+                    o_trimmed_face = o_trimmed_face_maker.Face()
+                else:
+                    o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_trimmed_face, o_wire)
+                    o_trimmed_face = o_trimmed_face_maker.Face()
+        
+            # Fix Shape
+            fixer = ShapeFix_Shape(o_trimmed_face)
+            fixer.Perform()
+            o_fixed_face = fixer.Shape()
+            
+            if len(s_faces) == 1:
+                # Display Brep
+                display.DisplayShape(o_fixed_face, update=True) 
+            elif len(s_faces) > 1:
+                # Sew faces together into a shell
+                sewing.Add(o_fixed_face)
+            
+        # Build shell or solid
+        print(len(s_faces))
+        if len(s_faces) > 1:
+            sewing.Perform()
+            shell = sewing.SewedShape()
+            
+            if s_brep.IsClosed is False:
+                # Display Brep as shell
+                display.DisplayShape(shell, update=True)
             else:
-                o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_trimmed_face, o_wire)
-                o_trimmed_face = o_trimmed_face_maker.Face()
-        
-        # Fix Shape
-        fixer = ShapeFix_Shape(o_trimmed_face)
-        fixer.Perform()
-        o_fixed_face = fixer.Shape()
+                # Create a solid from the shell
+                solid_maker = BRepBuilderAPI_MakeSolid(shell)
+                solid = solid_maker.Solid()
+                # Display Brep as solid
+                display.DisplayShape(solid, update=True)
                 
-        # Display Brep
-        display.DisplayShape(o_fixed_face, update=True)    
-        
     start_display()
