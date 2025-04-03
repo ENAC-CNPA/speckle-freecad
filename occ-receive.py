@@ -1,13 +1,19 @@
 # Init python-occ
 from OCC.Core.gp import gp_Pnt, gp_Circ, gp_Ax2, gp_Dir
 from OCC.Core.GC import GC_MakeArcOfCircle
-from OCC.Core.TColgp import TColgp_Array1OfPnt, TColgp_Array2OfPnt
+from OCC.Core.TColgp import TColgp_Array1OfPnt, TColgp_Array2OfPnt, TColgp_Array1OfPnt2d
 from OCC.Core.TColStd import TColStd_Array1OfReal, TColStd_Array1OfInteger
 from OCC.Core.Geom import Geom_BSplineCurve, Geom_Line, Geom_BSplineSurface, Geom_Circle, Geom_TrimmedCurve
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeShell
 from OCC.Display.SimpleGui import init_display
 from OCC.Core.ShapeFix import ShapeFix_Edge, ShapeFix_Shape
 from OCC.Core.TopoDS import TopoDS_Edge, TopoDS_Face
+from OCC.Core.BRep import BRep_Tool
+from OCC.Core.Geom2d import Geom2d_Line, Geom2d_Circle, Geom2d_TrimmedCurve
+from OCC.Core.gp import gp_Pnt2d, gp_Lin2d, gp_Circ2d, gp_Ax2d, gp_Vec2d, gp_Dir2d
+from OCC.Core.Geom2d import Geom2d_BSplineCurve
+from OCC.Core.BRep import BRep_Builder
+#from OCC.Core.ElCLib import ElCLib_Parameter
 
 # Initialize the display
 display, start_display, add_menu, add_function_to_menu = init_display()
@@ -32,9 +38,20 @@ if __name__ == "__main__":
     #received = operations.receive("4ba26e43e5b70463cdb060b36cc448d3", transport) # rectangular face
     #received = operations.receive("cdc9f429541627224c00610898c664d7", transport) # pentagone face
     #received = operations.receive("390dc996c2567991b1f36004c20cba69", transport) # circular face
-    received = operations.receive("0bd349d32c8a9b00942709495e7b8dab", transport) # arch face
+    #received = operations.receive("0bd349d32c8a9b00942709495e7b8dab", transport) # arch face
+    #received = operations.receive("7b9ef1e597899c804f833d17d917ae05", transport) # planar surface with mix of edges types
+    #received = operations.receive("348518420eaa2f0e1c6c0c6bd92d2b89", transport) # planar triangular face
+    #received = operations.receive("161c29e5346e8988ab87c00aa5477630", transport) # planar triangular face with triangular hole
+    #received = operations.receive("1008040021ab18d29392598684ffe569", transport) # planar pentagonal face with pentagonal hole
+    #received = operations.receive("b4a7e732d4f03bea608b59e311f0bf52", transport) # planar pentagonal face with arched hole
+    #received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # planar pentagonal face with circular hole
+    #received = operations.receive("397dfde2f1e10379f7db810a0e27644c", transport) # planar pentagonal face with multiple holes
+    #received = operations.receive("eb5d50ae43a78dcecc4a84e52f179ecb", transport) # planar pentagonal face with multiple holes of each type
     #received = operations.receive("3b320207576b80c0134fde287653806e", transport) # 3D surface
+    #received = operations.receive("de3d9777e53fac1b047ff019e594f63e", transport) # spherical triangular face
+    #received = operations.receive("42bb9190e8dc0c071898bb434e274f9d", transport) # loft of arcs of circles
     #received = operations.receive("9c6c57fc183435879178ea8b73ebf963", transport) # trimmed 3D surface
+    received = operations.receive("bc043113ca32744823c6c627f934469e", transport) # trimmed 3D surface with hole
     #received = operations.receive("972bd504c8bad2a8cc83b5a0147307c5", transport) # planar rectangular face with rectangular holes
     
     
@@ -66,10 +83,10 @@ def line_from_speckle_to_occ(element):
     o_start = gp_Pnt(s_start.x, s_start.y, s_start.z)
     o_end = gp_Pnt(s_end.x, s_end.y, s_end.z)
     
-    # Create an OCC edge
-    o_line = BRepBuilderAPI_MakeEdge(o_start, o_end).Edge()
-    
-    return o_line
+    # Create a 3D OCC edge
+    o_line_edge = BRepBuilderAPI_MakeEdge(o_start, o_end).Edge()
+
+    return o_line_edge
 
 # Polyline
 def polyline_from_speckle_to_occ(element):
@@ -133,12 +150,12 @@ def arc_from_speckle_to_occ(element):
     # Create an OCC arc
     o_arc_maker = GC_MakeArcOfCircle(o_start_pnt, o_mid_pnt, o_end_pnt)
     
-    o_arc_curve = o_arc_maker.Value()
+    o_arc = o_arc_maker.Value()
 
     # Convert to an edge for display or modeling
-    o_arc = BRepBuilderAPI_MakeEdge(o_arc_curve).Edge()
+    o_arc_edge = BRepBuilderAPI_MakeEdge(o_arc).Edge()
 
-    return o_arc
+    return o_arc_edge
 
 # Curve
 def curve_from_speckle_to_occ(element):
@@ -199,7 +216,125 @@ def curve_from_speckle_to_occ(element):
         o_poles, o_weights, o_knots, o_multiplicities, o_degree, o_periodic, o_check_rational
     )
     
-    return o_curve
+    o_curve_edge = BRepBuilderAPI_MakeEdge(o_curve).Edge()
+    
+    return o_curve_edge
+
+# Convert a Speckle 2D curve (in UV space) to an OpenCascade Geom2d_Curve for Breps
+def curve2D_from_speckle_to_occ(s_curve2D):
+
+    if s_curve2D.speckle_type == "Objects.Geometry.Line":
+        start_uv = gp_Pnt2d(s_curve2D.start.x, s_curve2D.start.y)
+        end_uv = gp_Pnt2d(s_curve2D.end.x, s_curve2D.end.y)
+        direction = gp_Dir2d(gp_Vec2d(start_uv, end_uv))
+        o_curve2D = Geom2d_Line(gp_Lin2d(start_uv, direction))
+        return o_curve2D
+    
+    elif s_curve2D.speckle_type == "Objects.Geometry.Circle": # Still problematic inside/outside
+        # Extract Speckle parameters
+        s_radius = s_curve2D.radius
+        s_plane = s_curve2D.plane
+        s_origin = s_plane.origin
+        s_normal = s_plane.normal
+
+        # Convert Speckle data to OCC
+        o_center = gp_Pnt2d(s_origin.x, s_origin.y)
+        o_radius = s_radius
+
+        # Create an OCC 2D circle
+        o_axis = gp_Ax2d(o_center, gp_Dir2d(1, 0))
+        o_curve2D = Geom2d_Circle(gp_Circ2d(o_axis, o_radius))
+
+        return o_curve2D
+    
+        """
+    elif s_curve2D.speckle_type == "Objects.Geometry.Arc": # Don't find ElClib
+        # Extract Speckle parameters
+        s_center = s_curve2D.plane.origin
+        s_radius = s_curve2D.radius
+        s_start = s_curve2D.startPoint
+        s_end = s_curve2D.endPoint
+
+        # Convert to OCC 2D types
+        o_center = gp_Pnt2d(s_center.x, s_center.y)
+        o_start = gp_Pnt2d(s_start.x, s_start.y)
+        o_end = gp_Pnt2d(s_end.x, s_end.y)
+
+        # Define the full 2D circle
+        axis = gp_Ax2d(o_center, gp_Dir2d(1, 0))  # Default direction
+        full_circle = Geom2d_Circle(gp_Circ2d(axis, s_radius))
+
+        # Get curve parameters for trimming
+        start_param = ElCLib_Parameter(full_circle.Circ2d(), o_start)
+        end_param = ElCLib_Parameter(full_circle.Circ2d(), o_end)
+
+        # Trim the circle to form an arc
+        o_arc = Geom2d_TrimmedCurve(full_circle, start_param, end_param)
+
+        return o_arc
+    
+        """
+    elif s_curve2D.speckle_type == "Objects.Geometry.Curve":
+        # Extract Speckle curve data
+        s_degree = s_curve2D.degree
+        s_points = s_curve2D.points
+        s_knots = s_curve2D.knots
+        s_weights = s_curve2D.weights
+        s_periodic = s_curve2D.periodic
+        s_rational = s_curve2D.rational
+
+        num_poles = len(s_points) // 3
+
+        # Convert poles to OCC format
+        o_poles = TColgp_Array1OfPnt2d(1, num_poles)
+        for i, c in enumerate(range(0, len(s_points), 3), start=1):
+            o_poles.SetValue(i, gp_Pnt2d(s_points[c], s_points[c+1]))
+
+        # Convert knots to OCC format
+        def process_knots(s_knots):
+            unique_knots = list(dict.fromkeys(s_knots))  # Remove duplicates
+            num_knots = len(unique_knots)
+            knots = TColStd_Array1OfReal(1, num_knots)
+            mults = TColStd_Array1OfInteger(1, num_knots)
+            
+            last_knot = None
+            i = 1
+            for j, knot in enumerate(s_knots, start=1):
+                if last_knot is None or last_knot != knot:
+                    knots.SetValue(i, knot)
+                    mults.SetValue(i, 1)
+                    i += 1
+                else:
+                    mults.SetValue(i - 1, mults.Value(i - 1) + 1)
+                last_knot = knot
+
+            # Ensure first and last multiplicities are (degree + 1)
+            mults.SetValue(1, s_degree + 1)
+            mults.SetValue(num_knots, s_degree + 1)
+
+            return knots, mults
+        
+        o_knots, o_mults = process_knots(s_knots)
+
+        # Convert weights
+        if s_rational:
+            o_weights = TColStd_Array1OfReal(1, len(s_weights))
+            for i, weight in enumerate(s_weights, start=1):
+                o_weights.SetValue(i, weight)
+        else:
+            o_weights = None
+
+        # Create OpenCascade 2D B-Spline Curve
+        if o_weights != None:
+            o_curve2D = Geom2d_BSplineCurve(
+                o_poles, o_weights, o_knots, o_mults, s_degree, s_periodic
+            )
+        else:
+            o_curve2D = Geom2d_BSplineCurve(
+                o_poles, o_knots, o_mults, s_degree, s_periodic
+            )
+        
+        return o_curve2D
 
 # Receive elements
 for element in all_elements:
@@ -210,7 +345,7 @@ for element in all_elements:
         display.DisplayShape(o_point, update=True)
     
     elif element.speckle_type == "Objects.Geometry.Line":
-        o_line = line_from_speckle_to_occ(element)
+        o_line, _ = line_from_speckle_to_occ(element)
         # Display Line
         display.DisplayShape(o_line, update=True)
         
@@ -239,12 +374,13 @@ for element in all_elements:
         s_brep = element
         
         s_curve3D = s_brep.Curve3D
+        s_curve2D = s_brep.Curve2D
         s_loops = s_brep.Loops
         s_trims = s_brep.Trims
         
         o_faces = []
-        
-        o_surfaces = []
+        o_TopoDS_Faces = []
+        o_Geom_Surfaces = []
 		
 		# Receive surface
         s_surfaces = s_brep.Surfaces
@@ -307,60 +443,77 @@ for element in all_elements:
             o_b_spline_surface = Geom_BSplineSurface(
                 o_poles, o_knotsU, o_knotsV, o_multsU, o_multsV, o_degreeU, o_degreeV, o_uPeriodic, o_vPeriodic
             )
+            
+            o_Geom_Surfaces.append(o_b_spline_surface)
                         
             # Convert the surface into a TopoDS_Face
             o_surface = BRepBuilderAPI_MakeFace(o_b_spline_surface, 1e-6).Face()
             
-            o_surfaces.append(o_surface)
+            o_TopoDS_Faces.append(o_surface)
+            
+        #display.DisplayShape(o_TopoDS_Faces[0], update=True)
         
         # List edges and create pcurves
-        def create_edge(curve):
-            if curve.speckle_type == "Objects.Geometry.Line":
-                return line_from_speckle_to_occ(curve)
-            elif curve.speckle_type == "Objects.Geometry.Circle":
-                return circle_from_speckle_to_occ(curve)
-            elif curve.speckle_type == "Objects.Geometry.Arc":
-                return arc_from_speckle_to_occ(curve)
+        def create_edge(element):
+            if element.speckle_type == "Objects.Geometry.Line":
+                return line_from_speckle_to_occ(element)
+            elif element.speckle_type == "Objects.Geometry.Circle":
+                return circle_from_speckle_to_occ(element)
+            elif element.speckle_type == "Objects.Geometry.Arc":
+                return arc_from_speckle_to_occ(element)
+            elif element.speckle_type == "Objects.Geometry.Curve":
+                return curve_from_speckle_to_occ(element)
         
-        o_edges = []
-        o_pcurves = []
+        o_TopoDS_Edges = []
+        for curve3D in s_curve3D:
+            edge = create_edge(curve3D)
+            o_TopoDS_Edges.append(edge)
         
-        for curve in s_curve3D :
-            edge = create_edge(curve)
+        o_Geom2d_Curves = []    
+        for curve2D in s_curve2D:      
+            # Convert Speckle 2D curve to OCC Geom2d_Curve
+            pcurve = curve2D_from_speckle_to_occ(curve2D)
+            o_Geom2d_Curves.append(pcurve)
             
-            face = o_surfaces[0]
-            is_seam = False
-            precision = 0.0
+        # Loops and trims
+        for i, loop in enumerate(s_loops):
+            # Get Speckle parameters
+            FaceIndex = loop.FaceIndex
+            TrimIndices = loop.TrimIndices
             
-            print("edge type:", type(edge))
-            print("face type:", type(face))
-            print("is_seam type:", type(is_seam))
-            print("precision type:", type(precision))
-
-            # Create a ShapeFix_Edge instance
-            fix_edge = ShapeFix_Edge.FixAddPCurve(edge, face, is_seam, precision)
-            print(fix_edge)
-            o_edges.append(edge)
+            # Create Wire Maker
+            o_wire_maker = BRepBuilderAPI_MakeWire()
+            
+            # Inspect Trims
+            trims = [s_trims[i] for i in TrimIndices]
+            for trim in trims:
+                # Attach pcurve to edge
+                EdgeIndex = trim.EdgeIndex
+                edge = o_TopoDS_Edges[EdgeIndex]
+                CurveIndex = trim.CurveIndex
+                pcurve = o_Geom2d_Curves[CurveIndex]
+                face = o_TopoDS_Faces[0]
+                tolerance = 1e-3
+                builder = BRep_Builder()
+                builder.UpdateEdge(edge, pcurve, face, tolerance)
+                # Add edge to wire
+                o_wire_maker.Add(edge)
+                
+            # Make Wire and Trim the Surface
+            o_wire = o_wire_maker.Wire()
+            if i == 0:
+                o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_Geom_Surfaces[FaceIndex], o_wire, True)
+                o_trimmed_face = o_trimmed_face_maker.Face()
+            else:
+                o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_trimmed_face, o_wire)
+                o_trimmed_face = o_trimmed_face_maker.Face()
         
-        s_loops = s_brep.Loops
-        s_trims = s_brep.Trims
-        
-        # Collect the edges to form a wire
-        o_wire_maker = BRepBuilderAPI_MakeWire()
-        for edge in o_edges:
-            o_wire_maker.Add(edge)
-        o_wire = o_wire_maker.Wire()
-        
-        # Trim the face with the wire
-        o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_b_spline_surface, o_wire)
-        o_trimmed_face = o_trimmed_face_maker.Face()
-        
-        # Fix face
+        # Fix Shape
         fixer = ShapeFix_Shape(o_trimmed_face)
         fixer.Perform()
         o_fixed_face = fixer.Shape()
-            
+                
         # Display Brep
-        display.DisplayShape(o_fixed_face, update=True)
+        display.DisplayShape(o_fixed_face, update=True)    
         
     start_display()
