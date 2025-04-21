@@ -23,12 +23,18 @@ from specklepy.api import operations
 from specklepy.api.wrapper import StreamWrapper
 
 if __name__ == "__main__":
-    stream_url = "https://app.speckle.systems/projects/e52fc1e920/models/4e35c79134"
+    #sent from Rhino :
+    #stream_url = "https://app.speckle.systems/projects/e52fc1e920/models/4e35c79134"
+    #sent from occ :
+    stream_url = "https://app.speckle.systems/projects/864c4d4027/models/9c0ec10379"
     wrapper = StreamWrapper(stream_url)
 
     transport = wrapper.get_transport()
 	
 	#id of main collection
+ 
+    #Les objets ci-dessous sont modélisés dans Rhino puis envoyés vers Speckle :
+    
     #received = operations.receive("fa8b2bea472ea99eb074585802c144c1", transport) # point
     #received = operations.receive("4b6b20120c4270406e8cefb0e31d8e6e", transport) # line
     #received = operations.receive("c0efbf4617325abdb10c5d85f192fdad", transport) # polyline
@@ -44,10 +50,10 @@ if __name__ == "__main__":
     #received = operations.receive("161c29e5346e8988ab87c00aa5477630", transport) # planar triangular face with triangular hole
     #received = operations.receive("1008040021ab18d29392598684ffe569", transport) # planar pentagonal face with pentagonal hole
     #received = operations.receive("b4a7e732d4f03bea608b59e311f0bf52", transport) # planar pentagonal face with arched hole
-    received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # planar pentagonal face with circular hole
+    #received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # planar pentagonal face with circular hole
     #received = operations.receive("397dfde2f1e10379f7db810a0e27644c", transport) # planar pentagonal face with multiple holes
     #received = operations.receive("eb5d50ae43a78dcecc4a84e52f179ecb", transport) # planar pentagonal face with multiple holes of each type
-    #received = operations.receive("3b320207576b80c0134fde287653806e", transport) # 3D surface
+    received = operations.receive("3b320207576b80c0134fde287653806e", transport) # 3D surface
     #received = operations.receive("de3d9777e53fac1b047ff019e594f63e", transport) # spherical triangular face
     #received = operations.receive("42bb9190e8dc0c071898bb434e274f9d", transport) # loft of arcs of circles
     #received = operations.receive("9c6c57fc183435879178ea8b73ebf963", transport) # trimmed 3D surface
@@ -55,7 +61,19 @@ if __name__ == "__main__":
     #received = operations.receive("972bd504c8bad2a8cc83b5a0147307c5", transport) # planar rectangular face with rectangular holes
     #received = operations.receive("7efc65e33c33f548e1c05ec425203164", transport) # pyramid 
     #received = operations.receive("8b86058cc3d1f87ff8e47e1156e9a5e0", transport) # pyramid with hole on one face 
-    #received = operations.receive("376cc583e33399ef7f729bdd20ee9b40", transport) # one face of the pyramid with hole 
+    #received = operations.receive("376cc583e33399ef7f729bdd20ee9b40", transport) # one face of the pyramid with hole
+    #received = operations.receive("5eb4738e43b9d0fc366acd91e4669b50", transport) # surface test
+    #received = operations.receive("e96b32676ddab914cac01b54ce24b19d", transport) # surface test 2 (planar trimmed by curves)
+    
+    #Les objets ci-dessous sont des .breps envoyés depuis python-occ avec l'autre code "send"
+    
+    #received = operations.receive("86699b789249e00e1a554a6d647d1f2e", transport) #occ faces triangle + rectangle
+    #received = operations.receive("55111a41e4a3f962917f174f67b91001", transport) #occ faces triangle + 2 rectangles
+    #received = operations.receive("67d2a43908c1854b4b4e790cbb282d78", transport) #occ faces 2 triangles + 2 rectangles
+    #received = operations.receive("7609c3333acbf65cbb347ab37f0cc8f8", transport) #occ faces 2 triangles (un avec un trou) + 2 rectangles
+    #received = operations.receive("066f7f70e2565c7350d5cff4f44ef247", transport) #occ faces triangle (avec un trou) + rectangle MODEL
+    #received = operations.receive("9db12eae1916361b42de2091cddcd2fb", transport) #occ faces triangle (avec un trou) + rectangle (reçu directement de Rhino pour comparaison)
+    #received = operations.receive("f96a51ac8d3c0bfe03193e29b25ed653", transport) #triangular extrusion
     
 all_elements = []
 
@@ -63,6 +81,7 @@ def process_item(item):
 	if item.speckle_type == "Speckle.Core.Models.Collection":
 		for element in item.elements:
 			process_item(element)
+		print("CollectionType : ", item.collectionType)
 	else:
 		all_elements.append(item)
 process_item(received)
@@ -341,6 +360,31 @@ def curve2D_from_speckle_to_occ(s_curve2D):
 # Receive elements
 for element in all_elements:
     
+    #Common Data
+    """
+    s_units = element.units;
+    print(s_units);
+    s_bbox = element.bbox;
+    print(s_bbox);
+    print(s_bbox.basePlane.origin.x, s_bbox.basePlane.origin.y, s_bbox.basePlane.origin.z)
+    print(s_bbox.basePlane.normal.x, s_bbox.basePlane.normal.y, s_bbox.basePlane.normal.z)
+    print(s_bbox.basePlane.xdir.x, s_bbox.basePlane.xdir.y, s_bbox.basePlane.xdir.z)
+    print(s_bbox.basePlane.ydir.x, s_bbox.basePlane.ydir.y, s_bbox.basePlane.ydir.z)
+    print(s_bbox.xSize.start, s_bbox.xSize.end, s_bbox.ySize.start, s_bbox.ySize.end, s_bbox.zSize.start, s_bbox.zSize.end)
+    s_area = element.area;
+    print(s_area);
+    s_provenance = element.provenance;
+    print(s_provenance);
+    s_volume = element.volume;
+    print(s_volume);
+    s_displayValue = element.displayValue[0];
+    print(s_displayValue);
+    mesh_vertices = s_displayValue.vertices;
+    print(mesh_vertices)
+    mesh_faces = s_displayValue.faces;
+    print(mesh_faces);
+    """
+    
     if element.speckle_type == "Objects.Geometry.Point":
         o_point = point_from_speckle_to_occ(element)
         #Display Point
@@ -373,6 +417,25 @@ for element in all_elements:
         
     elif element.speckle_type == "Objects.Geometry.Brep":
         
+        print("Surfaces:", len(element.Surfaces))
+        for i,s in enumerate(element.Surfaces):
+            print("Surface", i, ": degreeU:", s.degreeU, "degreeV:", s.degreeV, "rational:", s.rational, "area:", s.area, "pointData:", s.pointData, "countU", s.countU, "countV", s.countV, "closedU:", s.closedU, "closedV:", s.closedV, "domainU:", s.domainU, "domainV:", s.domainV, "knotsU:", s.knotsU, "knotsV:", s.knotsV)
+        print("Curve3D:", len(element.Curve3D))
+        print("Curve2D:", len(element.Curve2D))
+        print("Vertices:", len(element.Vertices))
+        print("Edges:", len(element.Edges))
+        for i,e in enumerate(element.Edges):
+            print("Edge", i, ": Curve3dIndex =", e.Curve3dIndex, "TrimIndices =", e.TrimIndices, "StartIndex =", e.StartIndex, "EndIndex =", e.EndIndex, "ProxyCurveIsReversed =", e.ProxyCurveIsReversed)
+        print("Loops nombre:", len(element.Loops))
+        for i,l in enumerate(element.Loops):
+            print("Loop", i, ": FaceIndex =", l.FaceIndex, "TrimIndices =", l.TrimIndices)
+        print("Faces nombre:", len(element.Faces))
+        for i,f in enumerate(element.Faces):
+            print("Face", i, ": SurfaceIndex =", f.SurfaceIndex, "OuterLoopIndex =", f.OuterLoopIndex, "LoopIndices =", f.LoopIndices)
+        print("Trims:", len(element.Trims))
+        for i,t in enumerate(element.Trims):
+            print("Trim", i, "EdgeIndex =", t.EdgeIndex, "StartIndex =", t.StartIndex, "EndIndex =", t.EndIndex, "FaceIndex =", t.FaceIndex, "LoopIndex =", t.LoopIndex, "CurveIndex =", t.CurveIndex, "IsReversed =", t.IsReversed, "TrimType =", t.TrimType, "Domain =", t.Domain, "IsoStatus =", t.IsoStatus)
+        
         s_brep = element
         
         s_surfaces = s_brep.Surfaces
@@ -381,7 +444,6 @@ for element in all_elements:
         s_loops = s_brep.Loops
         s_faces = s_brep.Faces
         s_trims = s_brep.Trims
-        print(s_brep.IsClosed)
 		
 		# Surfaces
         o_Geom_Surfaces = []
@@ -484,11 +546,8 @@ for element in all_elements:
         # Faces
         for k, face in enumerate(s_faces):
             SurfaceIndex = face.SurfaceIndex
-            print(SurfaceIndex)
             OuterLoopIndex = face.OuterLoopIndex
-            print(OuterLoopIndex)
             LoopIndices = face.LoopIndices
-            print(LoopIndices)
             
             loops = []
             for j, loop in enumerate(s_loops):
@@ -497,7 +556,6 @@ for element in all_elements:
                 elif j in LoopIndices:
                     loops.append(loop)
             loops.insert(0, outer_loop)
-            print(loops)
             
             # Loops and trims
             for i, loop in enumerate(loops):
@@ -534,6 +592,7 @@ for element in all_elements:
             fixer.Perform()
             o_fixed_face = fixer.Shape()
             
+            
             if len(s_faces) == 1:
                 # Display Brep
                 display.DisplayShape(o_fixed_face, update=True) 
@@ -541,8 +600,8 @@ for element in all_elements:
                 # Sew faces together into a shell
                 sewing.Add(o_fixed_face)
             
+            
         # Build shell or solid
-        print(len(s_faces))
         if len(s_faces) > 1:
             sewing.Perform()
             shell = sewing.SewedShape()
@@ -556,5 +615,6 @@ for element in all_elements:
                 solid = solid_maker.Solid()
                 # Display Brep as solid
                 display.DisplayShape(solid, update=True)
+            
                 
-    start_display()
+start_display()

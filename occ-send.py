@@ -22,6 +22,7 @@ from OCC.Core.Geom2d import Geom2d_Line
 from OCC.Core.gp import gp_Pnt2d
 from OCC.Core.gp import gp_Pln, gp_Ax3
 from OCC.Core.GeomAPI import geomapi
+from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
 from OCC.Core.TopAbs import (
     TopAbs_VERTEX,
     TopAbs_EDGE,
@@ -49,7 +50,6 @@ from specklepy.objects.other import Collection
 client = SpeckleClient(host="https://app.speckle.systems/")
 account = get_default_account()
 client.authenticate_with_account(account)
-#copy paste your stream id here :
 stream_id = "864c4d4027"
 
 #set container of all elements
@@ -62,6 +62,26 @@ def vertex_from_occ_to_speckle(vertex):
     o_point = BRep_Tool.Pnt(vertex)
     s_Vertex = Point(x = o_point.Y(), y = o_point.Y(), z = o_point.Z())
     return s_Vertex
+
+def create_speckle_plane(origin, normal, xdir, ydir):
+    s_Plane = Plane(
+        origin = origin,
+        normal = normal,
+        xdir = xdir,
+        ydir = ydir,
+    )
+    return s_Plane
+
+def create_speckle_box(basePlane, xSize, ySize, zSize, area, volume):
+    s_Box = Box(
+        basePlane = basePlane,
+        xSize = xSize,
+        ySize = ySize,
+        zSize = zSize, 
+        area = area,
+        volume = volume
+    )
+    return s_Box
     
 def curve_from_occ_to_speckle(edge):
     curve, u_min, u_max = BRep_Tool.Curve(edge)
@@ -226,6 +246,17 @@ def surface_from_occ_to_speckle(o_b_spline_surface: Geom_BSplineSurface):
     )
     return s_surface
 
+"""
+def create_mesh(shape):
+    mesh = BRepMesh_IncrementalMesh(shape, 0.1) 
+    mesh.Perform()
+    print(mesh)
+    s_Mesh = Mesh(
+        vertices = s_vertices,
+        faces = s_faces
+    )
+"""
+
 # Convert the BREP
 # Optional: name mapping for convenience
 shape_type_names = {
@@ -240,10 +271,16 @@ shape_type_names = {
 }
 
 # Load the brep file
+# "From Rhino" sont des objets modélisés sur Rhino et exportés en step, puis ouverts dans FreeCAD et exportés en .brep
+# En effet, Rhino n'a pas d'export .brep
+# Les autres sont modélisés directement dan FreeCAD
 shape = TopoDS_Shape()
 builder = BRep_Builder()
-#Copy paste the local path to your brep file here:
-breptools.Read(shape, "./breps/model.brep", builder)
+#breptools.Read(shape, "./breps/line.brep", builder)
+#breptools.Read(shape, "./breps/curve.brep", builder)
+#breptools.Read(shape, "./breps/from rhino/faces5.brep", builder)
+breptools.Read(shape, "./breps/surface.brep", builder)
+#breptools.Read(shape, "./breps/triangular-extrusion.brep", builder)
 
 has_face = False
 
@@ -374,8 +411,10 @@ if has_face: #handle as BREP
                             FaceIndex = FaceIndex,
                             LoopIndex = LoopIndex,
                             CurveIndex = CurveIndex,
+                            IsoStatus = 0, #WIP
                             TrimType = BrepTrimType.Boundary,
-                            IsReversed = isReversed   
+                            IsReversed = isReversed,
+                            Domain = None
                         )
                         s_Trims.append(s_BrepTrim)
                         
@@ -423,6 +462,13 @@ if has_face: #handle as BREP
     for i,t in enumerate(s_Trims):
         print("Trim", i, "EdgeIndex =", t.EdgeIndex, "StartIndex =", t.StartIndex, "EndIndex =", t.EndIndex, "FaceIndex =", t.FaceIndex, "LoopIndex =", t.LoopIndex, "CurveIndex =", t.CurveIndex, "IsReversed =", t.IsReversed)
 
+
+    #WIP mesh
+    s_mesh = Mesh(
+        Vertices = [650, -100, 0, 602.4471435546875, -134.5491485595703, 0, 620.6107177734375, -190.4508514404297, 0, 679.3892822265625, -190.4508514404297, 0, 697.5528564453125, -134.5491485595703, 0],
+        Faces = [3, 4, 1, 2, 3, 0, 1, 4, 3, 3, 4, 2]
+    )    
+
     s_Brep = Brep(
         Surfaces = s_Surfaces,
         Curve3D = s_Curve3D,
@@ -433,7 +479,51 @@ if has_face: #handle as BREP
         Faces = s_Faces,
         Trims = s_Trims,
         IsClosed = s_IsClosed,
-        Orientation = s_Orientation
+        Orientation = s_Orientation,
+        _units = "mm",
+        provenance = "python-occ",
+        _displayValue = [s_mesh],
+        applicationId = "0123456789", # WIP
+        volume = "123", #WIP
+        area = "1234", #WIP
+        bbox = Box(
+            basePlane = Plane(
+                origin = Point(
+                    x = 0.0,
+                    y = 0.0,
+                    z = 0.0
+                ),
+                normal = Vector(
+                    x = 0.0,
+                    y = 0.0,
+                    z = 1.0                    
+                ),
+                xdir = Vector(
+                    x = 1.0,
+                    y = 0.0,
+                    z = 0.0                  
+                ),
+                ydir = Vector(
+                    x = 0.0,
+                    y = 1.0,
+                    z = 0.0  
+                )
+            ),
+            xSize = Interval(
+                start = 601.4961176689471,
+                end = 698.5038823310529
+            ),
+            ySize = Interval(
+                start = -191.35535821593487,
+                end = -99.09549150281252
+            ),
+            zSize = Interval(
+                start = 0.0,
+                end = 0.0
+            ),
+            area = None,
+            volume = None
+        )
     )
     
     #add to data to be sent
@@ -448,6 +538,13 @@ else:
         #add to data to be sent
         data.elements.append(s_curve)
         edge_explorer.Next()
+    
+# Data of collection
+data.name = "MyCollection" #WIP
+data.units = "mm" #WIP
+data.applicationId = "0987654321" # WIP
+data.collectionType = "layer"
+data.totalChildrenCount = 1
 
 #send to Speckle
 from specklepy.transports.server import ServerTransport
@@ -460,7 +557,6 @@ commid_id = client.commit.create(
     message="these are elements from OCC",
     )
 print("sent")
-
 
 display.DisplayShape(shape, update=True)
 start_display()
