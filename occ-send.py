@@ -276,10 +276,13 @@ shape_type_names = {
 # Les autres sont modélisés directement dan FreeCAD
 shape = TopoDS_Shape()
 builder = BRep_Builder()
-#breptools.Read(shape, "./breps/line.brep", builder)
-#breptools.Read(shape, "./breps/curve.brep", builder)
-#breptools.Read(shape, "./breps/from rhino/faces5.brep", builder)
-breptools.Read(shape, "./breps/surface.brep", builder)
+#breptools.Read(shape, "./breps/line.brep", builder) #= ok
+#breptools.Read(shape, "./breps/curve.brep", builder) #= ok
+#breptools.Read(shape, "./breps/from rhino/faces5.brep", builder) #= ok (deux faces planes dont une avec un trou)
+#breptools.Read(shape, "./breps/from rhino/curved planar face.brep", builder)
+breptools.Read(shape, "./breps/from rhino/curved planar face with hole.brep", builder) #= pas ok
+
+#breptools.Read(shape, "./breps/surface.brep", builder)
 #breptools.Read(shape, "./breps/triangular-extrusion.brep", builder)
 
 has_face = False
