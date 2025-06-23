@@ -1,107 +1,105 @@
-# Init python-occ
-from OCC.Core.gp import gp_Pnt, gp_Circ, gp_Ax2, gp_Dir
+# The code below works. 
+# To trim surfaces, it doesn't project 3D curves on 2D curves related to the surface (pcurves), but do it directly in 3D.
+# The resulting face is not directly clean and requires ShapeFix_Shape.
+
+# Initialize python-occ
+from OCC.Core.BRep import BRep_Builder, BRep_Tool
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_Sewing, BRepBuilderAPI_MakeSolid
 from OCC.Core.GC import GC_MakeArcOfCircle
-from OCC.Core.TColgp import TColgp_Array1OfPnt, TColgp_Array2OfPnt, TColgp_Array1OfPnt2d
+from OCC.Core.Geom import Geom_BSplineCurve, Geom_BSplineSurface, Geom_Circle
+from OCC.Core.gp import gp_Pnt, gp_Circ, gp_Dir, gp_Ax2
+from OCC.Core.ShapeFix import ShapeFix_Shape
+from OCC.Core.TColgp import TColgp_Array1OfPnt, TColgp_Array2OfPnt
 from OCC.Core.TColStd import TColStd_Array1OfReal, TColStd_Array1OfInteger
-from OCC.Core.Geom import Geom_BSplineCurve, Geom_Line, Geom_BSplineSurface, Geom_Circle, Geom_TrimmedCurve
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeVertex, BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_MakeShell, BRepBuilderAPI_Sewing, BRepBuilderAPI_MakeSolid
-from OCC.Display.SimpleGui import init_display
-from OCC.Core.ShapeFix import ShapeFix_Edge, ShapeFix_Shape
-from OCC.Core.TopoDS import TopoDS_Edge, TopoDS_Face, TopoDS_Shell, topods
-from OCC.Core.BRep import BRep_Tool
-from OCC.Core.Geom2d import Geom2d_Line, Geom2d_Circle, Geom2d_TrimmedCurve, Geom2d_BSplineCurve
-from OCC.Core.Geom2dAPI import Geom2dAPI_PointsToBSpline
-from OCC.Core.gp import gp_Pnt2d, gp_Lin2d, gp_Circ2d, gp_Ax2d, gp_Vec2d, gp_Dir2d
-from OCC.Core.BRep import BRep_Builder
-from OCC.Core.BRepCheck import BRepCheck_Analyzer
+from OCC.Core.TopAbs import TopAbs_VERTEX, TopAbs_FORWARD, TopAbs_REVERSED
 from OCC.Core.TopExp import TopExp_Explorer
-from OCC.Core.TopAbs import TopAbs_VERTEX
-from OCC.Core.TopAbs import TopAbs_FORWARD, TopAbs_REVERSED
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Copy
-from OCC.Core.TopoDS import topods
-#from OCC.Core.ElCLib import ElCLib_Parameter
+from OCC.Display.SimpleGui import init_display
 
 # Initialize the display
 display, start_display, add_menu, add_function_to_menu = init_display()
 
-# Init Speckle
+# Initialize Speckle
 from specklepy.api import operations
 from specklepy.api.wrapper import StreamWrapper
 
 if __name__ == "__main__":
-    #sent from Rhino :
-    #stream_url = "https://app.speckle.systems/projects/e52fc1e920/models/4e35c79134"
-    #sent from occ :
     stream_url = "https://app.speckle.systems/projects/864c4d4027/models/9c0ec10379"
     wrapper = StreamWrapper(stream_url)
 
     transport = wrapper.get_transport()
-	
-	#id of main collection
  
-    #Les objets ci-dessous sont modélisés dans Rhino puis envoyés vers Speckle :
+    #Objects sent from Rhinoceros 3D to Speckle :
     
+    #Is working:
+    
+    #Curves :
     #received = operations.receive("fa8b2bea472ea99eb074585802c144c1", transport) # point
     #received = operations.receive("4b6b20120c4270406e8cefb0e31d8e6e", transport) # line
-    received = operations.receive("c0efbf4617325abdb10c5d85f192fdad", transport) # polyline
+    #received = operations.receive("c0efbf4617325abdb10c5d85f192fdad", transport) # polyline
     #received = operations.receive("c9132104319d7d09c251a9896de93060", transport) # circle
     #received = operations.receive("a65d3dec8951963906ff9c122b874675", transport) # arc
     #received = operations.receive("26d680179faff3c9be98f88aa5de71d3", transport) # curve
+    
+    #Planar faces:
+    #received = operations.receive("348518420eaa2f0e1c6c0c6bd92d2b89", transport) # triangular face
     #received = operations.receive("4ba26e43e5b70463cdb060b36cc448d3", transport) # rectangular face
-    #received = operations.receive("cdc9f429541627224c00610898c664d7", transport) # pentagone face
+    #received = operations.receive("cdc9f429541627224c00610898c664d7", transport) # pentagonal face
     #received = operations.receive("390dc996c2567991b1f36004c20cba69", transport) # circular face
-    #received = operations.receive("0bd349d32c8a9b00942709495e7b8dab", transport) # arch face
-    #received = operations.receive("7b9ef1e597899c804f833d17d917ae05", transport) # planar surface with mix of edges types
-    #received = operations.receive("348518420eaa2f0e1c6c0c6bd92d2b89", transport) # planar triangular face
-    #received = operations.receive("161c29e5346e8988ab87c00aa5477630", transport) # planar triangular face with triangular hole
-    #received = operations.receive("1008040021ab18d29392598684ffe569", transport) # planar pentagonal face with pentagonal hole
-    #received = operations.receive("b4a7e732d4f03bea608b59e311f0bf52", transport) # planar pentagonal face with arched hole
-    #received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # planar pentagonal face with circular hole
-    #received = operations.receive("397dfde2f1e10379f7db810a0e27644c", transport) # planar pentagonal face with multiple holes
-    #received = operations.receive("eb5d50ae43a78dcecc4a84e52f179ecb", transport) # planar pentagonal face with multiple holes of each type
-    #received = operations.receive("3b320207576b80c0134fde287653806e", transport) # 3D surface
+    #received = operations.receive("0bd349d32c8a9b00942709495e7b8dab", transport) # arched face
+    #received = operations.receive("1e20a0b13e4e0843044b79d35231074b", transport) # curved face
+    #received = operations.receive("7b9ef1e597899c804f833d17d917ae05", transport) # face with mix of edges types
+    #received = operations.receive("658ef9b63021d1266573c00f527c2bdc", transport) # cylinder, only lower and upper faces
+    
+    #Planar faces with holes:
+    #received = operations.receive("161c29e5346e8988ab87c00aa5477630", transport) # triangular face with triangular hole
+    #received = operations.receive("1008040021ab18d29392598684ffe569", transport) # pentagonal face with pentagonal hole
+    #received = operations.receive("90f988a827c1021abc3125f69e3c70b3", transport) # pentagonal face with circular hole
+    #received = operations.receive("b4a7e732d4f03bea608b59e311f0bf52", transport) # pentagonal face with arched hole
+    #received = operations.receive("972bd504c8bad2a8cc83b5a0147307c5", transport) # rectangular face with rectangular holes
+    #received = operations.receive("397dfde2f1e10379f7db810a0e27644c", transport) # pentagonal face with multiple straight holes
+    #received = operations.receive("eb5d50ae43a78dcecc4a84e52f179ecb", transport) # pentagonal face with multiple holes of each type
+    #received = operations.receive("0298c70cbe7783aefd1a8d0ae3bd6a92", transport) # curved planar face with curved hole
+    #received = operations.receive("2f4c57e6f1535a8edd0a0c8e6eb89d98", transport) # curved planar face with two curved holes
+    
+    #3D faces
+    #received = operations.receive("3b320207576b80c0134fde287653806e", transport) # rectangular face deformed in 3D
+    #received = operations.receive("9c6c57fc183435879178ea8b73ebf963", transport) # trimmed rectangular face deformed in 3D
+    #received = operations.receive("93b7da1e9cd0c00101998e4fda51d800", transport) # triangular face deformed in 3D
+    #received = operations.receive("42bb9190e8dc0c071898bb434e274f9d", transport) # dome-like shape = loft of arcs of circles
+    #received = operations.receive("81539f5dcbf1b439c34684dc745aa1d2", transport) # portion of cylinder, without lower and upper faces, sent from grasshopper to control edges
+    
+    #3D faces with holes:
+    #received = operations.receive("bc043113ca32744823c6c627f934469e", transport) # trimmed rectangular face deformed in 3D, with hole
+    #received = operations.receive("c11c75b599c6066668481aa22d5c3719", transport) # curved face deformed in 3D, with curved hole
+    
+    #Complex BReps with multiple faces and holes
+    #received = operations.receive("76bf73ff646a5833e7eb6145b035b44d", transport) # planar face with straight edges, extruded
+    #received = operations.receive("794f4da8239920b851f820e77b457cc2", transport) # two planar triangular faces, one with a hole
+    #received = operations.receive("7efc65e33c33f548e1c05ec425203164", transport) # pyramid = multiple faces
+    #received = operations.receive("8b86058cc3d1f87ff8e47e1156e9a5e0", transport) # pyramid with one hole on one face
+    #received = operations.receive("5369930079697d28c4568dc2d99b6d97", transport) # closed curved planar face, extruded
+    received = operations.receive("ac4aae21998abfa560084adbe02fbd5e", transport) # curved face deformed in 3D, with curved hole, extruded    
+    
+    #Is not working:
     #received = operations.receive("de3d9777e53fac1b047ff019e594f63e", transport) # spherical triangular face
-    #received = operations.receive("42bb9190e8dc0c071898bb434e274f9d", transport) # loft of arcs of circles
-    #received = operations.receive("9c6c57fc183435879178ea8b73ebf963", transport) # trimmed 3D surface
-    #received = operations.receive("bc043113ca32744823c6c627f934469e", transport) # trimmed 3D surface with hole
-    #received = operations.receive("972bd504c8bad2a8cc83b5a0147307c5", transport) # planar rectangular face with rectangular holes
-    #received = operations.receive("7efc65e33c33f548e1c05ec425203164", transport) # pyramid 
-    #received = operations.receive("8b86058cc3d1f87ff8e47e1156e9a5e0", transport) # pyramid with hole on one face 
-    #received = operations.receive("376cc583e33399ef7f729bdd20ee9b40", transport) # one face of the pyramid with hole
-    #received = operations.receive("5eb4738e43b9d0fc366acd91e4669b50", transport) # surface test
-    #received = operations.receive("e96b32676ddab914cac01b54ce24b19d", transport) # surface test 2 (planar trimmed by curves)
-    
-    #Les objets ci-dessous sont des .breps envoyés depuis python-occ avec l'autre code "send"
-    
-    #received = operations.receive("86699b789249e00e1a554a6d647d1f2e", transport) #occ faces triangle + rectangle
-    #received = operations.receive("55111a41e4a3f962917f174f67b91001", transport) #occ faces triangle + 2 rectangles
-    #received = operations.receive("67d2a43908c1854b4b4e790cbb282d78", transport) #occ faces 2 triangles + 2 rectangles
-    #received = operations.receive("7609c3333acbf65cbb347ab37f0cc8f8", transport) #occ faces 2 triangles (un avec un trou) + 2 rectangles
-    #received = operations.receive("066f7f70e2565c7350d5cff4f44ef247", transport) #occ faces triangle (avec un trou) + rectangle MODEL
-    #received = operations.receive("9db12eae1916361b42de2091cddcd2fb", transport) #occ faces triangle (avec un trou) + rectangle (reçu directement de Rhino pour comparaison)
-    #received = operations.receive("f96a51ac8d3c0bfe03193e29b25ed653", transport) #triangular extrusion
-    
-    #Ok:
-    #received = operations.receive("1e20a0b13e4e0843044b79d35231074b", transport) #curved planar srf
-    #received = operations.receive("0298c70cbe7783aefd1a8d0ae3bd6a92", transport) #curved planar srf with hole
-    #received = operations.receive("c11c75b599c6066668481aa22d5c3719", transport) #curved srf with hole deformed in 3D
-    #received = operations.receive("9dd5d9f4a3cd578976602543e36040b1", transport) #straight planar srf with two holes
-    #received = operations.receive("2f4c57e6f1535a8edd0a0c8e6eb89d98", transport) #curved planar srf with two holes
-    #received = operations.receive("658ef9b63021d1266573c00f527c2bdc", transport) #cylinder, only lower and upper faces
-    #received = operations.receive("40e09dbf8940419ee8348f1a2ec15c1f", transport) #circle
-    #received = operations.receive("7be6388e0df5d9fce26466e8f5feea94", transport) #circular planar face
-    #received = operations.receive("76bf73ff646a5833e7eb6145b035b44d", transport) #straight planar srf, extruded
-    #received = operations.receive("794f4da8239920b851f820e77b457cc2", transport) #two planar triangular faces, one with a hole
-    #received = operations.receive("6864bda1aa2c2975513d0d4d3556cf8e", transport) #rectangle deformed in 3d space
-    #received = operations.receive("93b7da1e9cd0c00101998e4fda51d800", transport) #triangular cutted shape rectangular deformed shape in 3D
-
-    #Pas ok:
-    #received = operations.receive("81539f5dcbf1b439c34684dc745aa1d2", transport) #cylinder arc, without lower and upper faces, from gh (controled edges)
-    #received = operations.receive("9216df6bd47121ddc75ee1b4abc87c5c", transport) #cylinder, without lower and upper faces
     #received = operations.receive("97686fd99a42b3f3deae4cf1a2c71fdb", transport) #cylinder, all faces
-    #received = operations.receive("5369930079697d28c4568dc2d99b6d97", transport) #curved planar srf, extruded
-    #received = operations.receive("6a903e7c6afa9f29c91ba2647d83fc72", transport) #curved planar srf with two holes, extruded
-    #received = operations.receive("ac4aae21998abfa560084adbe02fbd5e", transport) #curved srf with hole deformed in 3D, extruded 
+    #received = operations.receive("9216df6bd47121ddc75ee1b4abc87c5c", transport) #cylinder, without lower and upper faces
+    #received = operations.receive("6a903e7c6afa9f29c91ba2647d83fc72", transport) #curved planar face with two holes, extruded
+    
+    
+    #Objects sent from pyton-occ with s.py
+    
+    #Is working:
+    #received = operations.receive("86699b789249e00e1a554a6d647d1f2e", transport) # one triangular and one rectangular planar faces
+    #received = operations.receive("55111a41e4a3f962917f174f67b91001", transport) # one triangular and two rectangular planar faces
+    #received = operations.receive("67d2a43908c1854b4b4e790cbb282d78", transport) # two triangular and two rectangular planar faces
+    #received = operations.receive("f96a51ac8d3c0bfe03193e29b25ed653", transport) # triangular face, extruded
+    #received = operations.receive("066f7f70e2565c7350d5cff4f44ef247", transport) # one triangular and one rectangular planar faces, one with a hole
+
+    
+    #Is not working:
+    #received = operations.receive("7609c3333acbf65cbb347ab37f0cc8f8", transport) #two triangular and two rectangular planar faces, one with a hole
+    
     
 all_elements = []
 
@@ -109,7 +107,6 @@ def process_item(item):
 	if item.speckle_type == "Speckle.Core.Models.Collection":
 		for element in item.elements:
 			process_item(element)
-		print("CollectionType : ", item.collectionType)
 	else:
 		all_elements.append(item)
 process_item(received)
@@ -124,86 +121,52 @@ def point_from_speckle_to_occ(element):
 
 # Line
 def line_from_speckle_to_occ(element):
-    # Extract Speckle parameters
     s_start = element.start
     s_end = element.end
-    
-    # Convert Speckle data to OCC
     o_start = gp_Pnt(s_start.x, s_start.y, s_start.z)
     o_end = gp_Pnt(s_end.x, s_end.y, s_end.z)
-    
-    # Create a 3D OCC edge
     o_line_edge = BRepBuilderAPI_MakeEdge(o_start, o_end).Edge()
-
     return o_line_edge
 
 # Polyline
 def polyline_from_speckle_to_occ(element):
     s_polyline = element
-    
-    # Convert flat list to a list of gp_Pnt
     o_points = [gp_Pnt(s_polyline.value[i], s_polyline.value[i+1], s_polyline.value[i+2])
                 for i in range(0, len(s_polyline.value), 3)]
-
-    # Create a wire builder
     wire_builder = BRepBuilderAPI_MakeWire()
-
-    # Add edges to the wire
     for i in range(len(o_points) - 1):
         edge = BRepBuilderAPI_MakeEdge(o_points[i], o_points[i+1]).Edge()
         wire_builder.Add(edge)
-
-    # Close the polyline if needed
     if s_polyline.closed and len(o_points) > 2:
         edge = BRepBuilderAPI_MakeEdge(o_points[-1], o_points[0]).Edge()
         wire_builder.Add(edge)
-        
-    # Create wire (polyline)
     o_polyline = wire_builder.Wire()
-
     return o_polyline
 
 # Circle
 def circle_from_speckle_to_occ(element):
-    # Extract Speckle parameters
     s_radius = element.radius
     s_plane = element.plane
     s_origin = s_plane.origin
     s_normal = s_plane.normal
-
-    # Convert Speckle data to OCC
     o_center = gp_Pnt(s_origin.x, s_origin.y, s_origin.z)
     o_normal = gp_Dir(s_normal.x, s_normal.y, s_normal.z)
     o_radius = s_radius
-
-    # Create an OCC circle
     o_circle = Geom_Circle(gp_Circ(gp_Ax2(o_center, o_normal), o_radius))
-
-    # Convert to an edge for display or modeling
     o_circle_edge = BRepBuilderAPI_MakeEdge(o_circle).Edge()
-    
     return o_circle_edge
 
 # Arc
 def arc_from_speckle_to_occ(element):
-    # Extract Speckle parameters
     s_startPoint = element.startPoint
     s_midPoint = element.midPoint
     s_endPoint = element.endPoint
-
-    # Convert Speckle data to OCC
     o_start_pnt = gp_Pnt(s_startPoint.x, s_startPoint.y, s_startPoint.z)
     o_mid_pnt = gp_Pnt(s_midPoint.x, s_midPoint.y, s_midPoint.z)
     o_end_pnt = gp_Pnt(s_endPoint.x, s_endPoint.y, s_endPoint.z)
-
-    # Create an OCC arc
     o_arc_maker = GC_MakeArcOfCircle(o_start_pnt, o_mid_pnt, o_end_pnt)
-    
     o_arc = o_arc_maker.Value()
-
-    # Convert to an edge for display or modeling
     o_arc_edge = BRepBuilderAPI_MakeEdge(o_arc).Edge()
-
     return o_arc_edge
 
 # Curve
@@ -223,9 +186,7 @@ def curve_from_speckle_to_occ(element):
         o_poles.SetValue(i, gp_Pnt(s_points[c], s_points[c+1], s_points[c+2]))
         o_weights.SetValue(i, s_weights[i-1])
     
-    # Define Knots
-    print("SPECKLE KNOTS LENGTH:", len(s_knots))
-    print("SPECKLE KNOTS:", s_knots)
+    # Define knots
     def s_knots_to_o_knots_list(s_knots):
         o_knots_list = []
         i = 0
@@ -260,241 +221,45 @@ def curve_from_speckle_to_occ(element):
     # Define other parameters
     o_degree = s_degree
     #o_periodic = s_periodic
-    #WIP: there is a mismatch building occ-periodic curves and knots count: currently all curves are set to non-periodic
+    # WIP: there is a mismatch between occ-periodic curves and knots count: currently all curves are set to non-periodic
     o_periodic = False
     o_check_rational = s_rational
-    
-    print("PERIODIC:", o_periodic)
-    print("POLES :", len(o_poles))
-    print("OCC KNOTS:")
-    for i in range(o_knots.Lower(), o_knots.Upper() + 1):
-        print(f"  {i}: {o_knots.Value(i)}")
-    print("OCC MULTIPLICITIES:")
-    for i in range(o_multiplicities.Lower(), o_multiplicities.Upper() + 1):
-        print(f"  {i}: {o_multiplicities.Value(i)}")
-    print("DEGREE :", o_degree)
-
     
     # Create curve
     o_curve = Geom_BSplineCurve(
         o_poles, o_weights, o_knots, o_multiplicities, o_degree, o_periodic, o_check_rational
     )
-    
     o_curve_edge = BRepBuilderAPI_MakeEdge(o_curve).Edge()
-    
     return o_curve_edge
-
-# Convert a Speckle 2D curve (in UV space) to an OpenCascade Geom2d_Curve for Breps
-def curve2D_from_speckle_to_occ(s_curve2D):
-
-    if s_curve2D.speckle_type == "Objects.Geometry.Line":
-        start_uv = gp_Pnt2d(s_curve2D.start.x, s_curve2D.start.y)
-        end_uv = gp_Pnt2d(s_curve2D.end.x, s_curve2D.end.y)
-        direction = gp_Dir2d(gp_Vec2d(start_uv, end_uv))
-        o_curve2D = Geom2d_Line(gp_Lin2d(start_uv, direction))
-        return o_curve2D
-    
-    elif s_curve2D.speckle_type == "Objects.Geometry.Polyline":
-        pts = curve2D.value  # list of floats: [x0,y0,z0, x1,y1,z1, ...]
-        if not pts or len(pts) < 6:
-            return None  # Not enough points for a polyline
-
-        n_pts = len(pts) // 3
-        arr = TColgp_Array1OfPnt2d(1, n_pts)
-        for i in range(n_pts):
-            x = pts[3*i]
-            y = pts[3*i + 1]
-            # Ignore z for 2d curve
-            arr.SetValue(i + 1, gp_Pnt2d(x, y))
-
-        # Fit a 2d BSpline through these points
-        spline = Geom2dAPI_PointsToBSpline(arr).Curve()
-        return spline
-    
-    elif s_curve2D.speckle_type == "Objects.Geometry.Circle": # Still problematic inside/outside
-        # Extract Speckle parameters
-        s_radius = s_curve2D.radius
-        s_plane = s_curve2D.plane
-        s_origin = s_plane.origin
-        s_normal = s_plane.normal
-
-        # Convert Speckle data to OCC
-        o_center = gp_Pnt2d(s_origin.x, s_origin.y)
-        o_radius = s_radius
-
-        # Create an OCC 2D circle
-        o_axis = gp_Ax2d(o_center, gp_Dir2d(1, 0))
-        o_curve2D = Geom2d_Circle(gp_Circ2d(o_axis, o_radius))
-
-        return o_curve2D
-    
-        """
-    elif s_curve2D.speckle_type == "Objects.Geometry.Arc": # Don't find ElClib
-        # Extract Speckle parameters
-        s_center = s_curve2D.plane.origin
-        s_radius = s_curve2D.radius
-        s_start = s_curve2D.startPoint
-        s_end = s_curve2D.endPoint
-
-        # Convert to OCC 2D types
-        o_center = gp_Pnt2d(s_center.x, s_center.y)
-        o_start = gp_Pnt2d(s_start.x, s_start.y)
-        o_end = gp_Pnt2d(s_end.x, s_end.y)
-
-        # Define the full 2D circle
-        axis = gp_Ax2d(o_center, gp_Dir2d(1, 0))  # Default direction
-        full_circle = Geom2d_Circle(gp_Circ2d(axis, s_radius))
-
-        # Get curve parameters for trimming
-        start_param = ElCLib_Parameter(full_circle.Circ2d(), o_start)
-        end_param = ElCLib_Parameter(full_circle.Circ2d(), o_end)
-
-        # Trim the circle to form an arc
-        o_arc = Geom2d_TrimmedCurve(full_circle, start_param, end_param)
-
-        return o_arc
-    
-        """
-    elif s_curve2D.speckle_type == "Objects.Geometry.Curve":
-        # Extract Speckle curve data
-        s_degree = s_curve2D.degree
-        s_points = s_curve2D.points
-        s_knots = s_curve2D.knots
-        s_weights = s_curve2D.weights
-        s_periodic = s_curve2D.periodic
-        s_rational = s_curve2D.rational
-
-        num_poles = len(s_points) // 3
-
-        # Convert poles to OCC format
-        o_poles = TColgp_Array1OfPnt2d(1, num_poles)
-        for i, c in enumerate(range(0, len(s_points), 3), start=1):
-            o_poles.SetValue(i, gp_Pnt2d(s_points[c], s_points[c+1]))
-
-        # Convert knots to OCC format
-        def process_knots(s_knots):
-            unique_knots = list(dict.fromkeys(s_knots))  # Remove duplicates
-            num_knots = len(unique_knots)
-            knots = TColStd_Array1OfReal(1, num_knots)
-            mults = TColStd_Array1OfInteger(1, num_knots)
-            
-            last_knot = None
-            i = 1
-            for j, knot in enumerate(s_knots, start=1):
-                if last_knot is None or last_knot != knot:
-                    knots.SetValue(i, knot)
-                    mults.SetValue(i, 1)
-                    i += 1
-                else:
-                    mults.SetValue(i - 1, mults.Value(i - 1) + 1)
-                last_knot = knot
-
-            # Ensure first and last multiplicities are (degree + 1)
-            mults.SetValue(1, s_degree + 1)
-            mults.SetValue(num_knots, s_degree + 1)
-
-            return knots, mults
-        
-        o_knots, o_mults = process_knots(s_knots)
-
-        # Convert weights
-        if s_rational:
-            o_weights = TColStd_Array1OfReal(1, len(s_weights))
-            for i, weight in enumerate(s_weights, start=1):
-                o_weights.SetValue(i, weight)
-        else:
-            o_weights = None
-
-        # Create OpenCascade 2D B-Spline Curve
-        if o_weights != None:
-            o_curve2D = Geom2d_BSplineCurve(
-                o_poles, o_weights, o_knots, o_mults, s_degree, s_periodic
-            )
-        else:
-            o_curve2D = Geom2d_BSplineCurve(
-                o_poles, o_knots, o_mults, s_degree, s_periodic
-            )
-        
-        return o_curve2D
 
 # Receive elements
 for element in all_elements:
     
-    #Common Data
-    """
-    s_units = element.units;
-    print(s_units);
-    s_bbox = element.bbox;
-    print(s_bbox);
-    print(s_bbox.basePlane.origin.x, s_bbox.basePlane.origin.y, s_bbox.basePlane.origin.z)
-    print(s_bbox.basePlane.normal.x, s_bbox.basePlane.normal.y, s_bbox.basePlane.normal.z)
-    print(s_bbox.basePlane.xdir.x, s_bbox.basePlane.xdir.y, s_bbox.basePlane.xdir.z)
-    print(s_bbox.basePlane.ydir.x, s_bbox.basePlane.ydir.y, s_bbox.basePlane.ydir.z)
-    print(s_bbox.xSize.start, s_bbox.xSize.end, s_bbox.ySize.start, s_bbox.ySize.end, s_bbox.zSize.start, s_bbox.zSize.end)
-    s_area = element.area;
-    print(s_area);
-    s_provenance = element.provenance;
-    print(s_provenance);
-    s_volume = element.volume;
-    print(s_volume);
-    s_displayValue = element.displayValue[0];
-    print(s_displayValue);
-    mesh_vertices = s_displayValue.vertices;
-    print(mesh_vertices)
-    mesh_faces = s_displayValue.faces;
-    print(mesh_faces);
-    """
-    
     if element.speckle_type == "Objects.Geometry.Point":
         o_point = point_from_speckle_to_occ(element)
-        #Display Point
         display.DisplayShape(o_point, update=True)
     
     elif element.speckle_type == "Objects.Geometry.Line":
-        o_line, _ = line_from_speckle_to_occ(element)
-        # Display Line
+        o_line = line_from_speckle_to_occ(element)
         display.DisplayShape(o_line, update=True)
         
     elif element.speckle_type == "Objects.Geometry.Polyline":
         o_polyline = polyline_from_speckle_to_occ(element)
-        # Display Polyline
         display.DisplayShape(o_polyline, update=True)
     
     elif element.speckle_type == "Objects.Geometry.Circle":
         o_circle = circle_from_speckle_to_occ(element)
-        # Display Circle
         display.DisplayShape(o_circle, update=True)
         
     elif element.speckle_type == "Objects.Geometry.Arc":
         o_arc = arc_from_speckle_to_occ(element)
-        # Display Arc
         display.DisplayShape(o_arc, update=True)
     
     elif element.speckle_type == "Objects.Geometry.Curve":
         o_curve = curve_from_speckle_to_occ(element)
-        # Display Curve
         display.DisplayShape(o_curve, update=True)
         
     elif element.speckle_type == "Objects.Geometry.Brep":
-        
-        print("Surfaces:", len(element.Surfaces))
-        for i,s in enumerate(element.Surfaces):
-            print("Surface", i, ": degreeU:", s.degreeU, "degreeV:", s.degreeV, "rational:", s.rational, "area:", s.area, "pointData:", s.pointData, "countU", s.countU, "countV", s.countV, "closedU:", s.closedU, "closedV:", s.closedV, "domainU:", s.domainU, "domainV:", s.domainV, "knotsU:", s.knotsU, "knotsV:", s.knotsV)
-        print("Curve3D:", len(element.Curve3D))
-        print("Curve2D:", len(element.Curve2D))
-        print("Vertices:", len(element.Vertices))
-        print("Edges:", len(element.Edges))
-        for i,e in enumerate(element.Edges):
-            print("Edge", i, ": Curve3dIndex =", e.Curve3dIndex, "TrimIndices =", e.TrimIndices, "StartIndex =", e.StartIndex, "EndIndex =", e.EndIndex, "ProxyCurveIsReversed =", e.ProxyCurveIsReversed)
-        print("Loops nombre:", len(element.Loops))
-        for i,l in enumerate(element.Loops):
-            print("Loop", i, ": FaceIndex =", l.FaceIndex, "TrimIndices =", l.TrimIndices)
-        print("Faces nombre:", len(element.Faces))
-        for i,f in enumerate(element.Faces):
-            print("Face", i, ": SurfaceIndex =", f.SurfaceIndex, "OuterLoopIndex =", f.OuterLoopIndex, "LoopIndices =", f.LoopIndices)
-        print("Trims:", len(element.Trims))
-        for i,t in enumerate(element.Trims):
-            print("Trim", i, "EdgeIndex =", t.EdgeIndex, "StartIndex =", t.StartIndex, "EndIndex =", t.EndIndex, "FaceIndex =", t.FaceIndex, "LoopIndex =", t.LoopIndex, "CurveIndex =", t.CurveIndex, "IsReversed =", t.IsReversed, "TrimType =", t.TrimType, "Domain =", t.Domain, "IsoStatus =", t.IsoStatus)
         
         s_brep = element
         
@@ -505,13 +270,9 @@ for element in all_elements:
         s_faces = s_brep.Faces
         s_trims = s_brep.Trims
 		
-		# Surfaces
         o_Geom_Surfaces = []
-        o_TopoDS_Faces = []
         
         for surface in s_surfaces:
-            
-            # Get Speckle parameters
             s_degreeU = surface.degreeU
             s_degreeV = surface.degreeV
             s_pointData = surface.pointData
@@ -520,12 +281,8 @@ for element in all_elements:
             s_knotsU = surface.knotsU
             s_knotsV = surface.knotsV
             
-            print("SURFACE:", s_degreeU, s_degreeV, s_pointData, s_countU, s_countV, s_knotsU, s_knotsV)
-            
-            # Convert Speckle control points to OCC poles
             o_poles = TColgp_Array2OfPnt(1, s_countU, 1, s_countV)
             index = 0
-            
             for u in range(1, s_countU + 1):
                 for v in range(1, s_countV + 1):
                     x = s_pointData[index]
@@ -534,7 +291,6 @@ for element in all_elements:
                     o_poles.SetValue(u, v, gp_Pnt(x, y, z))
                     index += 4 # the fourth coordinate is the weight, skip
             
-            # Convert Speckle knots/multiplicities to OCC 
             def receive_knots_and_mults(s_knots, degree):
                 unique_knots = list(dict.fromkeys(s_knots))  # Remove duplicates while preserving order
                 num_unique_knots = len(unique_knots)
@@ -551,11 +307,8 @@ for element in all_elements:
                     else:
                         mults.SetValue(i - 1, mults.Value(i - 1) + 1)
                     last_knot = knot
-
-                # Ensure first and last multiplicities are (degree + 1)
                 mults.SetValue(1, degree + 1)
                 mults.SetValue(num_unique_knots, degree + 1)
-
                 return knots, mults
             
             o_knotsU, o_multsU = receive_knots_and_mults(s_knotsU, s_degreeU)
@@ -566,20 +319,11 @@ for element in all_elements:
             o_degreeU = s_degreeU
             o_degreeV = s_degreeV
                         
-            # Create the OCC B-Spline surface
             o_b_spline_surface = Geom_BSplineSurface(
                 o_poles, o_knotsU, o_knotsV, o_multsU, o_multsV, o_degreeU, o_degreeV, o_uPeriodic, o_vPeriodic
             )
-            
             o_Geom_Surfaces.append(o_b_spline_surface)
-                        
-            # Convert the surface into a TopoDS_Face
-            o_surface = BRepBuilderAPI_MakeFace(o_b_spline_surface, 1e-6).Face()
             
-            o_TopoDS_Faces.append(o_surface)
-            
-        # Edges        
-        # List edges and create pcurves
         def create_edge(element):
             if element.speckle_type == "Objects.Geometry.Line":
                 return line_from_speckle_to_occ(element)
@@ -594,73 +338,33 @@ for element in all_elements:
         for curve3D in s_curve3D:
             edge = create_edge(curve3D)
             o_TopoDS_Edges.append(edge)
-        
-        o_Geom2d_Curves = []    
-        for i, curve2D in enumerate(s_curve2D):      
-            pcurve = curve2D_from_speckle_to_occ(curve2D)
-            print(f"[DEBUG] PCurve {i}: {type(pcurve)}")
-            print(f"[WARNING] PCurve {i} is None! curve2D data: {curve2D}")
-            o_Geom2d_Curves.append(pcurve)
-        
-        # Prepare Shell
+ 
         if len(s_faces) > 1:
             sewing = BRepBuilderAPI_Sewing()
             
-        # Faces
         for k, face in enumerate(s_faces):
             SurfaceIndex = face.SurfaceIndex
             OuterLoopIndex = face.OuterLoopIndex
-            LoopIndices = face.LoopIndices
-            
-            print("FACE:", face.SurfaceIndex, face.OuterLoopIndex, face.OrientationReversed, face.LoopIndices)
-            
+            LoopIndices = face.LoopIndices         
             loops = []
             for j, loop in enumerate(s_loops):
                 if j == OuterLoopIndex:
                     outer_loop = loop
                 elif j in LoopIndices:
                     loops.append(loop)
-                
-                print("LOOP:", loop.FaceIndex, loop.TrimIndices, loop.Type)
             loops.insert(0, outer_loop)
-            
-            # Loops and trims
             for i, loop in enumerate(loops):
-                # Get Speckle parameters
                 TrimIndices = loop.TrimIndices
-                
-                # Create Wire Maker
                 o_wire_maker = BRepBuilderAPI_MakeWire()
-                
-                # Inspect Trims
                 trims = [s_trims[i] for i in TrimIndices]
-                print("PCURVES ARE:", len(o_Geom2d_Curves))
                 builder = BRep_Builder()
                 for trim in trims:
-                    # Attach pcurve to edge
                     edge = o_TopoDS_Edges[trim.EdgeIndex]
-                    # Create a copy of the edge
-                    edge_shape = BRepBuilderAPI_Copy(edge).Shape()
-
-                    # Cast the copied shape to an edge
-                    oriented_edge = topods.Edge(edge_shape)
-                    if trim.IsReversed == True:
-                        oriented_edge.Orientation(TopAbs_REVERSED)
-                        print("REVERSED EDGE")
+                    if trim.IsReversed:
+                        edge.Orientation(TopAbs_REVERSED)
                     else:
-                        oriented_edge.Orientation(TopAbs_FORWARD)
-                        print("NON-REVERSED EDGE")
-                    pcurve = o_Geom2d_Curves[trim.CurveIndex]
-                    
-                    o_TopoDS_Face = o_TopoDS_Faces[k]
-                    tolerance = 1e-3
-                    builder.UpdateEdge(oriented_edge, pcurve, o_TopoDS_Face, tolerance)
-                    # Add edge to wire
-                    o_wire_maker.Add(oriented_edge)
-                    
-                    print(f"Trim: EdgeIndex={trim.EdgeIndex}, StartIndex={trim.StartIndex}, EndIndex={trim.EndIndex}, FaceIndex={trim.FaceIndex}, LoopIndex={trim.LoopIndex}, CurveIndex={trim.CurveIndex}, PCurveIndex={trim.CurveIndex}, IsoStatus={trim.IsoStatus}, TrimType={trim.TrimType}, IsReversed={trim.IsReversed}, Domain={trim.Domain}")
-                    
-                    #check:
+                        edge.Orientation(TopAbs_FORWARD)
+                    o_wire_maker.Add(edge)
                     vertex_explorer = TopExp_Explorer(edge, TopAbs_VERTEX)
                     verts = []
                     while vertex_explorer.More():
@@ -668,44 +372,33 @@ for element in all_elements:
                         pnt = BRep_Tool.Pnt(v)
                         verts.append((pnt.X(), pnt.Y(), pnt.Z()))
                         vertex_explorer.Next()
-                    print(f"Edge {trim.EdgeIndex} vertices: {verts}")
-                    
-                # Make Wire and Trim the Surface
                 o_wire = o_wire_maker.Wire()
                 if i == 0:
+                    print(SurfaceIndex)
                     o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_Geom_Surfaces[SurfaceIndex], o_wire, True)
                     o_trimmed_face = o_trimmed_face_maker.Face()
                 else:
                     o_trimmed_face_maker = BRepBuilderAPI_MakeFace(o_trimmed_face, o_wire)
                     o_trimmed_face = o_trimmed_face_maker.Face()
-        
-            # Fix Shape
+
             fixer = ShapeFix_Shape(o_trimmed_face)
             fixer.Perform()
             o_fixed_face = fixer.Shape()
             
-            # remettre fixe face dans display?
             if len(s_faces) == 1:
-                # Display Brep
-                display.DisplayShape(o_trimmed_face, update=True) 
+                display.DisplayShape(o_fixed_face, update=True)
+
             elif len(s_faces) > 1:
-                # Sew faces together into a shell
                 sewing.Add(o_fixed_face)
-            
-            
-        # Build shell or solid
+
         if len(s_faces) > 1:
             sewing.Perform()
             shell = sewing.SewedShape()
-            
             if s_brep.IsClosed is False:
-                # Display Brep as shell
                 display.DisplayShape(shell, update=True)
             else:
-                # Create a solid from the shell
                 solid_maker = BRepBuilderAPI_MakeSolid(shell)
                 solid = solid_maker.Solid()
-                # Display Brep as solid
                 display.DisplayShape(solid, update=True)
                 
 start_display()
